@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  chakra,
   Link as CkLink,
   Container,
   Flex,
@@ -23,6 +24,7 @@ import {
   LuStepBack,
   LuStepForward,
 } from "react-icons/lu";
+import FlowDemo from "../features/landing/FlowDemo";
 import traceDemoManifest from "../../public/trace-demo/manifest.json";
 
 type RailItem =
@@ -499,6 +501,42 @@ const HowItWorksPage: NextPage = () => {
                 The map should be interpreted through that chain.
               </Text>
               <Box
+                as="figure"
+                bg="gray.50"
+                borderWidth="1px"
+                borderColor="gray.200"
+                borderRadius="md"
+                p={{ base: 4, md: 5 }}
+                m={0}
+                my={4}
+              >
+                <chakra.img
+                  src="/infomap/images/fig-flow-mapping.svg"
+                  alt="Modeling and mapping flow with the map equation framework"
+                  maxW="48rem"
+                  w="100%"
+                  display="block"
+                  mx="auto"
+                />
+                <Text
+                  as="figcaption"
+                  color="gray.600"
+                  fontSize="sm"
+                  lineHeight={1.6}
+                  mt={3}
+                  mb={0}
+                  maxW="48rem"
+                  mx="auto"
+                >
+                  The map equation framework in three steps. A network
+                  representation (left) is chosen for the type of interaction —
+                  pairwise, multi-mode, multi-step, or multi-body. A random-walk
+                  model (middle) approximates the flow on that representation.
+                  Minimizing the map equation reveals flow modules (right) where
+                  a random walker tends to stay before moving on.
+                </Text>
+              </Box>
+              <Box
                 borderWidth="1px"
                 borderColor="gray.200"
                 borderRadius="md"
@@ -558,9 +596,9 @@ const HowItWorksPage: NextPage = () => {
             >
               <Text color="gray.600" fontSize="sm" maxW="42rem" mb={4}>
                 Flow is a modeling choice. It can be measured directly in some
-                systems and induced by the network representation in others.
-                The four typical setups below differ in where flow comes from
-                and how strongly the data constrains the lens.
+                systems and induced by the network representation in others. The
+                four typical setups below differ in where flow comes from and
+                how strongly the data constrains the lens.
               </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
                 {fitCards.map((card, index) => (
@@ -589,8 +627,8 @@ const HowItWorksPage: NextPage = () => {
               title="Network models refine what the lens can see"
             >
               <Text color="gray.600" fontSize="sm" maxW="44rem" mb={5}>
-                The previous section asked what kind of process drives flow.
-                The network model decides how that process is encoded: direction,
+                The previous section asked what kind of process drives flow. The
+                network model decides how that process is encoded: direction,
                 weights, node types, layers, memory, scale, and regularization
                 each change what the random walker can do and which structure
                 becomes visible.
@@ -713,6 +751,39 @@ const HowItWorksPage: NextPage = () => {
                   </Box>
                 ))}
               </SimpleGrid>
+              <Box
+                as="figure"
+                bg="gray.50"
+                borderWidth="1px"
+                borderColor="gray.200"
+                borderRadius="md"
+                p={{ base: 4, md: 5 }}
+                m={0}
+                mt={5}
+              >
+                <Box maxW="48rem" mx="auto">
+                  <FlowDemo showCodes />
+                </Box>
+                <Text
+                  as="figcaption"
+                  color="gray.600"
+                  fontSize="sm"
+                  lineHeight={1.6}
+                  mt={3}
+                  mb={0}
+                >
+                  The same random walker on two views of the network. Without
+                  modules (left), every node needs its own global codeword, so
+                  the average codelength L₁ stays high. With modules (right),
+                  the walker reuses short codewords inside each module and only
+                  spends extra bits on enter and exit codes when it crosses a
+                  boundary; when flow is retained inside modules, L drops. The
+                  walker also teleports to a random node with a small
+                  probability so it can escape dead ends and explore
+                  disconnected parts of the network — the same teleport that
+                  defines the stationary flow used by the map equation.
+                </Text>
+              </Box>
             </SectionCard>
 
             <SectionCard
@@ -726,6 +797,43 @@ const HowItWorksPage: NextPage = () => {
                 codebooks. It connects retained-flow communities to how
                 efficiently the chosen flow model can be described.
               </Text>
+              <Box
+                as="figure"
+                bg="gray.50"
+                borderWidth="1px"
+                borderColor="gray.200"
+                borderRadius="md"
+                p={{ base: 4, md: 5 }}
+                m={0}
+                mb={5}
+              >
+                <chakra.img
+                  src="/infomap/images/fig-complexity.svg"
+                  alt="Description length versus model complexity for partitions of a network"
+                  maxW="52rem"
+                  w="100%"
+                  display="block"
+                  mx="auto"
+                />
+                <Text
+                  as="figcaption"
+                  color="gray.600"
+                  fontSize="sm"
+                  lineHeight={1.6}
+                  mt={3}
+                  mb={0}
+                  maxW="52rem"
+                  mx="auto"
+                >
+                  Solution landscape across partitions of varying model
+                  complexity. The number of modules grows from left to right;
+                  colors mark module assignments and the numbers approximate the
+                  description length in bits per step. The shortest codelength
+                  balances model complexity against the regularities the
+                  partition captures — here the four-module partition at 3.1
+                  bits.
+                </Text>
+              </Box>
               <Grid
                 templateColumns={{ base: "minmax(0, 1fr)", md: "3fr 2fr" }}
                 gap={5}

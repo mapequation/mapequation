@@ -165,6 +165,28 @@ export const Layout = ({ children, fillViewport = false }) => {
               <Text color="gray.600" mb={0}>
                 &copy; {new Date().getFullYear()} mapequation.org
               </Text>
+              <HStack gap={2} mt={1}>
+                {[
+                  { user: "danieledler", name: "Daniel Edler" },
+                  { user: "antoneri", name: "Anton Holmgren" },
+                  { user: "mrosvall", name: "Martin Rosvall" },
+                ].map(({ user, name }) => (
+                  <a
+                    key={user}
+                    href={`https://github.com/${user}`}
+                    title={name}
+                    aria-label={name}
+                  >
+                    <img
+                      src={`https://github.com/${user}.png?size=48`}
+                      alt={name}
+                      width={24}
+                      height={24}
+                      style={{ borderRadius: "9999px" }}
+                    />
+                  </a>
+                ))}
+              </HStack>
             </Stack>
 
             <Stack gap={2}>
