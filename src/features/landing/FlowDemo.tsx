@@ -44,6 +44,8 @@ function huffmanCodes(items: HuffmanItem[]): Map<number, string> {
 
 const moduleExitMarker = -1;
 
+const tapeScheme = ["#A8753F", "#737B4C", "#4F6F94", "#8A2F25"];
+
 type WalkerNodePos = { px: number; py: number };
 
 const Walker = function Walker({
@@ -754,15 +756,27 @@ export default function FlowDemo({
           {visible.length === 0 ? (
             <chakra.span color="gray.400">…</chakra.span>
           ) : (
-            visible.map((seg) => (
-              <chakra.span
-                key={seg.key}
-                color={colorize(seg)}
-                fontWeight={seg.type === "node" ? 400 : 600}
-              >
-                {seg.code}
-              </chakra.span>
-            ))
+            (() => {
+              let lastStepStart = visible.length - 1;
+              while (
+                lastStepStart > 0 &&
+                visible[lastStepStart - 1].type !== "node"
+              ) {
+                lastStepStart--;
+              }
+              return visible.map((seg, i) => {
+                const inLastStep = i >= lastStepStart;
+                return (
+                  <chakra.span
+                    key={seg.key}
+                    color={colorize(seg)}
+                    fontWeight={inLastStep ? 700 : 400}
+                  >
+                    {seg.code}
+                  </chakra.span>
+                );
+              });
+            })()
           )}
         </Box>
         <Box
@@ -802,7 +816,7 @@ export default function FlowDemo({
           <Box mt={2}>
             {renderTapeRow(
               codeStream,
-              (seg) => flowDemoSchemeAlt[seg.module] ?? "gray.700",
+              (seg) => tapeScheme[seg.module] ?? "gray.700",
               "L",
             )}
           </Box>
