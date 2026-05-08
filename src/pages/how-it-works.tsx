@@ -269,6 +269,25 @@ function AlgorithmTraceDemo({
   const isAtEnd = activeFrame === frames.length - 1;
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    let cancelled = false;
+    const idle =
+      (window as unknown as { requestIdleCallback?: (cb: () => void) => void })
+        .requestIdleCallback ??
+      ((cb: () => void) => window.setTimeout(cb, 200));
+    idle(() => {
+      if (cancelled) return;
+      for (const f of frames) {
+        const img = new Image();
+        img.src = f.src;
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [frames]);
+
+  useEffect(() => {
     if (!isPlaying) return;
     const id = window.setInterval(() => {
       setActiveFrame((current) => {
@@ -496,9 +515,10 @@ const HowItWorksPage: NextPage = () => {
             >
               <Text color="gray.600" fontSize="sm" maxW="44rem">
                 The scientific logic is a modeling chain: the research question
-                motivates the network representation, the representation defines
+                motivates the network representation, the representation guides
                 the flow model, and Infomap maps where that flow is retained.
-                The map should be interpreted through that chain.
+                Each step is adaptable and can be customized to the problem at
+                hand. The map should be interpreted through that chain.
               </Text>
               <Box
                 as="figure"
@@ -648,8 +668,10 @@ const HowItWorksPage: NextPage = () => {
                     <Text color="gray.600" fontSize="sm">
                       {model.text}
                     </Text>
-                    <CkLink href={model.href} fontSize="sm" fontWeight={600}>
-                      {model.linkText} <LuArrowRight />
+                    <CkLink asChild fontSize="sm" fontWeight={600}>
+                      <NextLink href={model.href}>
+                        {model.linkText} <LuArrowRight />
+                      </NextLink>
                     </CkLink>
                   </Box>
                 ))}

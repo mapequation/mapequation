@@ -67,19 +67,23 @@ export const Layout = ({ children, fillViewport = false }) => {
             py={{ base: 3, md: 5 }}
             minW={0}
           >
-            <NextLink href="/" style={{ maxWidth: "100%", minWidth: 0 }}>
-              <HStack
-                justify={{ base: "center", sm: "flex-start" }}
-                align="center"
-                gap={2}
-                flexBasis={{ base: "100%", sm: "auto" }}
-                mr={{ base: 0, md: 4 }}
-                minW={0}
+            <HStack
+              justify={{ base: "center", sm: "flex-start" }}
+              align="center"
+              gap={2}
+              flexBasis={{ base: "100%", sm: "auto" }}
+              mr={{ base: 0, md: 4 }}
+              minW={0}
+              style={{ maxWidth: "100%" }}
+            >
+              <a
+                href="//mapequation.org"
+                aria-label="MapEquation home"
+                style={{ display: "block", flexShrink: 0 }}
               >
                 <Box
                   w={{ base: "32px", sm: "40px" }}
                   h={{ base: "32px", sm: "40px" }}
-                  flexShrink="0"
                 >
                   <img
                     alt="MapEquation"
@@ -89,7 +93,9 @@ export const Layout = ({ children, fillViewport = false }) => {
                     src="//mapequation.org/assets/img/twocolormapicon_whiteboarder.svg"
                   />
                 </Box>
+              </a>
 
+              <NextLink href="/" style={{ minWidth: 0 }}>
                 <Box minW={0}>
                   <Heading
                     fontSize={{ base: "1.35rem", sm: "1.55rem", md: "1.75rem" }}
@@ -100,8 +106,8 @@ export const Layout = ({ children, fillViewport = false }) => {
                     <span style={{ color: "#b22222" }}>Online</span>
                   </Heading>
                 </Box>
-              </HStack>
-            </NextLink>
+              </NextLink>
+            </HStack>
             <Button asChild variant="ghost" size={{ base: "sm", md: "md" }}>
               <NextLink href="/online">Try it</NextLink>
             </Button>

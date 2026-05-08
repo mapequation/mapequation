@@ -47,60 +47,108 @@ const moduleExitMarker = -1;
 type WalkerNodePos = { px: number; py: number };
 
 const Walker = function Walker({
-  from,
-  to,
+  target,
   teleported,
-  duration,
-  trigger,
+  omega,
+  zeta,
+  maxAccel,
+  maxDecel,
+  maxSpeed,
+  tailScale,
+  paused,
 }: {
-  from: WalkerNodePos | null;
-  to: WalkerNodePos;
+  target: WalkerNodePos;
   teleported: boolean;
-  duration: number;
-  trigger: number;
+  omega: number;
+  zeta: number;
+  maxAccel: number;
+  maxDecel: number;
+  maxSpeed: number;
+  tailScale: number;
+  paused: boolean;
 }) {
-  const [progress, setProgress] = useState(0);
-  const triggerRef = useRef(trigger);
-  if (triggerRef.current !== trigger) {
-    triggerRef.current = trigger;
-    setProgress(0);
-  }
+  const pathRef = useRef<SVGPathElement>(null);
+  const pos = useRef({ x: target.px, y: target.py });
+  const vel = useRef({ x: 0, y: 0 });
+  const targetRef = useRef(target);
 
   useLayoutEffect(() => {
-    if (!from) return;
+    targetRef.current = target;
+  }, [target]);
+
+  useEffect(() => {
+    if (paused) return;
     let frame = 0;
-    let start: number | null = null;
+    let last: number | null = null;
+    const stiffness = omega * omega;
+    const damping = 2 * zeta * omega;
     const animate = (t: number) => {
-      start ??= t;
-      const p = Math.min(1, (t - start) / duration);
-      setProgress(easeOutCubic(p));
-      if (p < 1) {
-        frame = window.requestAnimationFrame(animate);
+      if (last === null) last = t;
+      const dt = Math.min((t - last) / 1000, 0.033);
+      last = t;
+
+      const tx = targetRef.current.px;
+      const ty = targetRef.current.py;
+      let ax = stiffness * (tx - pos.current.x) - damping * vel.current.x;
+      let ay = stiffness * (ty - pos.current.y) - damping * vel.current.y;
+      const accelMag = Math.hypot(ax, ay);
+      const speedMag0 = Math.hypot(vel.current.x, vel.current.y);
+      const isBraking =
+        speedMag0 > 50 && ax * vel.current.x + ay * vel.current.y < 0;
+      const cap = isBraking ? maxDecel : maxAccel;
+      if (accelMag > cap) {
+        const k = cap / accelMag;
+        ax *= k;
+        ay *= k;
       }
+      vel.current.x += ax * dt;
+      vel.current.y += ay * dt;
+      const speedMag = Math.hypot(vel.current.x, vel.current.y);
+      if (speedMag > maxSpeed) {
+        const k = maxSpeed / speedMag;
+        vel.current.x *= k;
+        vel.current.y *= k;
+      }
+      pos.current.x += vel.current.x * dt;
+      pos.current.y += vel.current.y * dt;
+
+      if (pathRef.current) {
+        pathRef.current.setAttribute(
+          "d",
+          springWalkerPath(
+            pos.current.x,
+            pos.current.y,
+            vel.current.x,
+            vel.current.y,
+            targetRef.current.px,
+            targetRef.current.py,
+            walkerRadius,
+            tailScale,
+          ),
+        );
+      }
+
+      frame = window.requestAnimationFrame(animate);
     };
     frame = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frame);
-  }, [trigger, duration, from]);
+  }, [paused, omega, zeta, maxAccel, maxDecel, maxSpeed, tailScale]);
 
-  if (!from) {
-    return (
-      <circle
-        cx={to.px}
-        cy={to.py}
-        r={walkerRadius}
-        fill="#393939"
-        stroke="#FFFFFF"
-        strokeWidth={2}
-      />
-    );
-  }
-
-  const x = from.px + (to.px - from.px) * progress;
-  const y = from.py + (to.py - from.py) * progress;
+  const initialD = springWalkerPath(
+    pos.current.x,
+    pos.current.y,
+    0,
+    0,
+    target.px,
+    target.py,
+    walkerRadius,
+    tailScale,
+  );
 
   return (
     <path
-      d={walkerPath(from.px, from.py, x, y, walkerRadius, Math.PI * progress)}
+      ref={pathRef}
+      d={initialD}
       fill="#393939"
       opacity={teleported ? 0.28 : 0.86}
       stroke="#FFFFFF"
@@ -124,7 +172,7 @@ const viewBox = {
   maxY: 700,
 };
 
-const baseWalkerInterval = 356;
+const baseWalkerInterval = 400;
 const baseWalkerDuration = 338;
 const googleTeleportRate = 0.15;
 const pageRankIterations = 100;
@@ -159,8 +207,6 @@ const chooseWeighted = (links: FlowDemoLink[]) => {
   return links[links.length - 1];
 };
 
-const easeOutCubic = (progress: number) => 1 - (1 - progress) ** 3;
-
 const walkerPath = (
   x1: number,
   y1: number,
@@ -183,6 +229,32 @@ const walkerPath = (
   return `M ${xa} ${ya}
           A ${r} ${r} 0 0 1 ${xb} ${yb}
           A ${tailLength} ${r} ${xDeg} 0 1 ${xa} ${ya}`;
+};
+
+const springWalkerPath = (
+  x: number,
+  y: number,
+  vx: number,
+  vy: number,
+  tx: number,
+  ty: number,
+  r: number,
+  tailScale: number,
+) => {
+  const speed = Math.hypot(vx, vy);
+  if (speed < 5) {
+    return `M ${x - r} ${y} a ${r} ${r} 0 1 0 ${2 * r} 0 a ${r} ${r} 0 1 0 ${-2 * r} 0`;
+  }
+  const dx = vx / speed;
+  const dy = vy / speed;
+  const distToTarget = Math.hypot(tx - x, ty - y);
+  const tailLen = Math.max(
+    r,
+    Math.min(r + tailScale * speed ** 1.3, r * 20, distToTarget * 0.35),
+  );
+  const fromX = x - dx * tailLen;
+  const fromY = y - dy * tailLen;
+  return walkerPath(fromX, fromY, x, y, r, Math.PI / 2);
 };
 
 const clippedLine = (
@@ -209,8 +281,17 @@ const clippedLine = (
 export default function FlowDemo({
   showCodes = false,
 }: { showCodes?: boolean } = {}) {
-  const walkerInterval = showCodes ? baseWalkerInterval : baseWalkerInterval * 1.5;
-  const walkerDuration = showCodes ? baseWalkerDuration : baseWalkerDuration * 1.5;
+  const walkerInterval = showCodes
+    ? baseWalkerInterval
+    : baseWalkerInterval * 1.5;
+  const omega = showCodes ? 14 : 9;
+  const zeta = 0.85;
+  const maxAccel = showCodes ? 4000 : 1800;
+  const maxDecel = showCodes ? 12000 : 6000;
+  const maxSpeed = showCodes ? 1100 : 700;
+  const tailScale = 0.012;
+  const focusDelay = showCodes ? 150 : 250;
+  const filterTransitionMs = showCodes ? 70 : 100;
   const graph = useMemo(() => {
     const xValues = flowDemoNodes.map((node) => node.x);
     const yValues = flowDemoNodes.map((node) => node.y);
@@ -493,17 +574,15 @@ export default function FlowDemo({
 
 
   const currentNode = graph.nodesById.get(walk.currentId) ?? graph.nodes[0];
-  const previousNode =
-    walk.previousId === null ? null : graph.nodesById.get(walk.previousId);
 
   const [visitingNodeId, setVisitingNodeId] = useState(walk.currentId);
   useEffect(() => {
     const id = window.setTimeout(
       () => setVisitingNodeId(walk.currentId),
-      walkerDuration * 0.5,
+      focusDelay,
     );
     return () => window.clearTimeout(id);
-  }, [walk.currentId]);
+  }, [walk.currentId, focusDelay]);
 
   const topPadding = maxNodeRadius + (showCodes ? 32 : 0);
   const sidePadding = maxNodeRadius;
@@ -609,7 +688,7 @@ export default function FlowDemo({
               node.id === visitingNodeId
                 ? "brightness(0.86) saturate(0.88)"
                 : "brightness(1)",
-            transition: `filter ${walkerDuration * 0.2}ms ease-out`,
+            transition: `filter ${filterTransitionMs}ms ease-out`,
           }}
         />
       ))}
@@ -617,11 +696,15 @@ export default function FlowDemo({
       {codeLayerByMode[mode]}
 
       <Walker
-        from={previousNode ?? null}
-        to={{ px: currentNode.px, py: currentNode.py }}
+        target={{ px: currentNode.px, py: currentNode.py }}
         teleported={walk.teleported}
-        duration={walkerDuration}
-        trigger={walk.currentId}
+        omega={omega}
+        zeta={zeta}
+        maxAccel={maxAccel}
+        maxDecel={maxDecel}
+        maxSpeed={maxSpeed}
+        tailScale={tailScale}
+        paused={!isVisible}
       />
     </svg>
   );
