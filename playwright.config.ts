@@ -13,7 +13,7 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run build && node scripts/serve-export.mjs",
-    url: "http://127.0.0.1:4173/infomap/",
+    url: "http://127.0.0.1:4173/",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

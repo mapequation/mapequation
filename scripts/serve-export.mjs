@@ -9,7 +9,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const exportDir = path.resolve(__dirname, "../out");
-const basePath = "/infomap";
 const port = Number(process.env.PORT || 4173);
 
 const MIME_TYPES = {
@@ -28,15 +27,7 @@ const MIME_TYPES = {
 };
 
 function getFilePath(requestPath) {
-  if (requestPath === "/") {
-    return null;
-  }
-
-  if (!requestPath.startsWith(basePath)) {
-    return false;
-  }
-
-  let relativePath = requestPath.slice(basePath.length) || "/";
+  let relativePath = requestPath || "/";
   if (relativePath.endsWith("/")) {
     relativePath += "index.html";
   }
@@ -57,12 +48,6 @@ function getFilePath(requestPath) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
   const filePath = getFilePath(url.pathname);
-
-  if (filePath === null) {
-    res.writeHead(302, { Location: `${basePath}/` });
-    res.end();
-    return;
-  }
 
   if (filePath === false) {
     res.writeHead(404);
@@ -116,5 +101,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, "127.0.0.1", () => {
-  console.log(`Serving static export on http://127.0.0.1:${port}${basePath}/`);
+  console.log(`Serving static export on http://127.0.0.1:${port}/`);
 });
