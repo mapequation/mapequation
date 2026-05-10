@@ -22,6 +22,7 @@ export const PortalSection = ({
   title,
   href,
   linkText,
+  extra,
   children,
 }: {
   id?: string;
@@ -29,6 +30,7 @@ export const PortalSection = ({
   title: string;
   href?: string;
   linkText?: string;
+  extra?: ReactNode;
   children: ReactNode;
 }) => (
   <Box as="section" id={id} mt={{ base: 10, md: 12 }}>
@@ -43,12 +45,17 @@ export const PortalSection = ({
       <Heading as="h2" size="md">
         {title}
       </Heading>
-      {href && linkText && (
-        <Link asChild fontSize="sm" fontWeight={600}>
-          <NextLink href={href}>
-            {linkText} <LuArrowRight />
-          </NextLink>
-        </Link>
+      {(extra || (href && linkText)) && (
+        <Flex align="baseline" gap={4} flexWrap="wrap">
+          {extra}
+          {href && linkText && (
+            <Link asChild fontSize="sm" fontWeight={600}>
+              <NextLink href={href}>
+                {linkText} <LuArrowRight />
+              </NextLink>
+            </Link>
+          )}
+        </Flex>
       )}
     </Flex>
     {children}

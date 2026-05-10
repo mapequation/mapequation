@@ -29,12 +29,12 @@ export default function SiteLayout({ children, fillViewport = false }: Props) {
     );
   }
   return (
-    <>
+    <Box minH="100dvh" display="flex" flexDirection="column">
       <Header />
-      <Box as="main" minH="100dvh">
+      <Box as="main" flex="1">
         <ErrorBoundary>{children}</ErrorBoundary>
       </Box>
       <Footer />
-    </>
+    </Box>
   );
 }

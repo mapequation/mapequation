@@ -588,7 +588,10 @@ export default function FlowDemo({
   const topPadding = maxNodeRadius + (showCodes ? 32 : 0);
   const sidePadding = maxNodeRadius;
   const bottomPadding = maxNodeRadius;
-  const svgViewBox = `${viewBox.minX - sidePadding} ${viewBox.minY - topPadding} ${viewBox.maxX - viewBox.minX + 2 * sidePadding} ${viewBox.maxY - viewBox.minY + topPadding + bottomPadding}`;
+  const svgWidth = viewBox.maxX - viewBox.minX + 2 * sidePadding;
+  const svgHeight = viewBox.maxY - viewBox.minY + topPadding + bottomPadding;
+  const svgViewBox = `${viewBox.minX - sidePadding} ${viewBox.minY - topPadding} ${svgWidth} ${svgHeight}`;
+  const svgAspect = `${svgWidth} / ${svgHeight}`;
 
   const linksLayer = useMemo(
     () => (
@@ -669,9 +672,13 @@ export default function FlowDemo({
       aria-label="Random walker moving through a network"
       role="img"
       viewBox={svgViewBox}
-      width="100%"
-      height="100%"
-      style={{ display: "block" }}
+      preserveAspectRatio="xMidYMid meet"
+      style={{
+        display: "block",
+        width: "100%",
+        height: "auto",
+        aspectRatio: svgAspect,
+      }}
     >
       {linksLayer}
 
@@ -736,10 +743,11 @@ export default function FlowDemo({
     const avg = visibleSteps > 0 ? visibleBits / visibleSteps : 0;
     return (
       <Box
-        display="flex"
-        alignItems="baseline"
-        gap={4}
         fontVariantNumeric="tabular-nums"
+        display={{ base: "block", md: "grid" }}
+        gridTemplateColumns={{ md: "minmax(0, 1fr) auto" }}
+        alignItems={{ md: "baseline" }}
+        gap={{ md: 4 }}
       >
         <Box
           fontFamily="monospace"
@@ -747,10 +755,7 @@ export default function FlowDemo({
           lineHeight={1.7}
           minH="1.8em"
           color="gray.700"
-          overflow="hidden"
-          whiteSpace="nowrap"
           textAlign="left"
-          flex="1"
         >
           {visible.length === 0 ? (
             <chakra.span color="gray.400">…</chakra.span>
@@ -763,17 +768,19 @@ export default function FlowDemo({
               ) {
                 lastStepStart--;
               }
-              return visible.map((seg, i) => {
+              return visible.flatMap((seg, i) => {
                 const inLastStep = i >= lastStepStart;
-                return (
+                return [
                   <chakra.span
                     key={seg.key}
                     color={colorize(seg)}
                     fontWeight={inLastStep ? 700 : 400}
+                    style={{ whiteSpace: "nowrap" }}
                   >
                     {seg.code}
-                  </chakra.span>
-                );
+                  </chakra.span>,
+                  <wbr key={`${seg.key}-wbr`} />,
+                ];
               });
             })()
           )}
@@ -782,9 +789,9 @@ export default function FlowDemo({
           fontSize="sm"
           color="gray.700"
           fontWeight={600}
-          flexShrink={0}
-          minW="7rem"
           textAlign="right"
+          mt={{ base: 1, md: 0 }}
+          whiteSpace="nowrap"
         >
           {label} = {avg.toFixed(2)} bits
         </Box>

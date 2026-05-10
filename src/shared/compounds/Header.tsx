@@ -196,7 +196,7 @@ export default function Header() {
   return (
     <Box
       as="header"
-      position="sticky"
+      position={{ base: "static", md: "sticky" }}
       top={0}
       zIndex={50}
       bg="#f5f2f0"
@@ -208,14 +208,15 @@ export default function Header() {
         <Flex
           align="center"
           flexWrap="wrap"
-          gap={16}
-          py={{ base: 3, md: 4 }}
+          rowGap={1}
+          columnGap={6}
+          py={3}
           minW={0}
         >
-          <Box mr={4} flexShrink={0}>
+          <Box flexShrink={0}>
             <Logo size={38} />
           </Box>
-          <HStack as="nav" gap={4} flexWrap="wrap">
+          <HStack as="nav" columnGap={2} rowGap={0} flexWrap="wrap">
             {MAIN_NAV.map((item) => {
               const active = top === item.id;
               if (item.isInfomap) {

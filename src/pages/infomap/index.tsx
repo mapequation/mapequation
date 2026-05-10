@@ -12,9 +12,11 @@ import type { NextPage } from "next";
 import NextLink from "next/link";
 import { LuArrowRight } from "react-icons/lu";
 import { PrimaryButton } from "../../shared/components/PrimaryButton";
+import { Tag } from "../../shared/components/Tag";
 import InstallCard from "../../shared/compounds/InstallCard";
 import PillarCard from "../../shared/compounds/PillarCard";
 import { PortalEyebrow, PortalSection } from "../../shared/compounds/portal";
+import { infomapVersionLabel } from "../../shared/infomapVersion";
 
 const Home: NextPage = () => {
   return (
@@ -102,6 +104,16 @@ const Home: NextPage = () => {
         title="Pick your platform"
         href="/infomap/install"
         linkText="Full install guide"
+        extra={
+          <chakra.a
+            href="https://github.com/mapequation/infomap/releases"
+            target="_blank"
+            rel="noreferrer"
+            textDecoration="none"
+          >
+            <Tag>{infomapVersionLabel} ↗</Tag>
+          </chakra.a>
+        }
       >
         <InstallCard />
       </PortalSection>
