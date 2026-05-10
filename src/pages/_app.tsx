@@ -1,10 +1,22 @@
 import "../styles/globals.css";
+import "@fontsource/philosopher/400.css";
+import "@fontsource/philosopher/700.css";
+import "@fontsource/open-sans/400.css";
+import "@fontsource/open-sans/600.css";
+import "@fontsource/open-sans/700.css";
 import { ChakraProvider } from "@chakra-ui/react";
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import Script from "next/script";
-import { Layout } from "../shared/components/Layout";
+import SiteLayout from "../shared/compounds/SiteLayout";
 import system from "../theme";
+
+declare global {
+  interface Window {
+    dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
+  }
+}
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   const fillViewport = Boolean((Component as any).fillViewport);
@@ -12,9 +24,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
   return (
     <>
       <Head>
-        <title>
-          Infomap - Network community detection using the Map Equation framework
-        </title>
+        <title>MapEquation — research, software, and visualizations</title>
       </Head>
       <Script
         src="https://www.googletagmanager.com/gtag/js?id=UA-27168379-1"
@@ -29,9 +39,9 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       />
 
       <ChakraProvider value={system}>
-        <Layout fillViewport={fillViewport}>
+        <SiteLayout fillViewport={fillViewport}>
           <Component {...pageProps} />
-        </Layout>
+        </SiteLayout>
       </ChakraProvider>
     </>
   );

@@ -1,0 +1,11 @@
+---
+title: "Mapping change in higher-order networks with multilevel and overlapping communities"
+authors: "Anton Holmgren, Daniel Edler, Martin Rosvall"
+year: 2023
+date: "2023-06-26"
+journal: "Applied Network Science 8, 42 (2023)"
+doi: "https://doi.org/10.1007/s41109-023-00565-4"
+arxiv: "2303.00622"
+---
+
+New network models of complex systems use layers, state nodes, or hyperedges to capture higher-order interactions and dynamics. Simplifying how the higher-order networks change over time or depending on the network model would be easy with alluvial diagrams, which visualize community splits and merges between networks. However, alluvial diagrams were developed for networks with regular nodes assigned to non-overlapping flat communities. How should they be defined for nodes in layers, state nodes, or hyperedges? How can they depict multilevel, overlapping communities? Here we generalize alluvial diagrams to map change in higher-order networks and provide an interactive tool for anyone to generate alluvial diagrams. We use the alluvial generator to illustrate the effect of modeling network flows with memory in a citation network, distinguishing multidisciplinary from field-specific journals.

@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 import {
+  hasMatchingModules,
+  parseNetworkPreview,
+} from "../src/features/infomap/networkPreviewParser";
+import {
   applyOutputContent,
   emptyOutput,
   outputFiles,
@@ -8,10 +12,6 @@ import {
   physicalFiles,
   stateFiles,
 } from "../src/state/output";
-import {
-  hasMatchingModules,
-  parseNetworkPreview,
-} from "../src/features/infomap-runner/networkPreviewParser";
 
 test("parses args and builds no-infomap args", async () => {
   globalThis.self = globalThis as Window & typeof globalThis;
