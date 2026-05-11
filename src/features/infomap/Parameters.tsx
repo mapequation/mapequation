@@ -5,6 +5,7 @@ import {
   HStack,
   IconButton,
   Input,
+  Kbd,
   Text,
 } from "@chakra-ui/react";
 import { Select } from "chakra-react-select";
@@ -19,21 +20,76 @@ const parameterGroups = ["Input", "Output", "Algorithm", "Accuracy", "About"];
 
 const normalizeSearch = (value: string) => value.trim().toLowerCase();
 
-const parameterMatches = (param: InfomapParameter, query: string) => {
-  if (!query) return true;
+const paramShortcuts: Record<string, string> = {
+  "--two-level": "2",
+  "--directed": "D",
+};
+const paramShortcut = (long: string): string | undefined => paramShortcuts[long];
 
-  return [
+type ParameterMatch = "name" | "description" | null;
+
+const parameterMatchType = (
+  param: InfomapParameter,
+  query: string,
+): ParameterMatch => {
+  if (!query) return "name";
+
+  const nameFields = [
     param.long,
     param.short,
     param.longString,
     param.shortString,
-    param.description,
     param.longType,
     ...(param.options ?? []),
-  ]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(query));
+  ];
+  if (
+    nameFields
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query))
+  ) {
+    return "name";
+  }
+
+  if (param.description?.toLowerCase().includes(query)) return "description";
+  return null;
 };
+
+const parameterMatches = (param: InfomapParameter, query: string) =>
+  parameterMatchType(param, query) !== null;
+
+function HighlightedText({
+  text,
+  query,
+}: {
+  text: string;
+  query: string;
+}) {
+  if (!query) return <>{text}</>;
+  const lower = text.toLowerCase();
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  let index = lower.indexOf(query, cursor);
+  while (index !== -1) {
+    if (index > cursor) parts.push(text.slice(cursor, index));
+    parts.push(
+      <mark
+        key={parts.length}
+        style={{
+          backgroundColor: "hsl(48, 95%, 75%)",
+          color: "inherit",
+          padding: 0,
+          borderRadius: "2px",
+        }}
+      >
+        {text.slice(index, index + query.length)}
+      </mark>,
+    );
+    cursor = index + query.length;
+    index = lower.indexOf(query, cursor);
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return <>{parts}</>;
+}
 
 function ToggleSwitch({
   id,
@@ -366,11 +422,18 @@ const ParameterGroup = ({
     return labelProps;
   };
 
+  const matchPriority = (match: ParameterMatch) =>
+    match === "name" ? 0 : match === "description" ? 1 : 2;
   const params = store.params
     .getParamsForGroup(group)
     .filter((param) => !param.advanced || advanced)
-    .filter((param) => parameterMatches(param, query))
-    .sort((a, b) => (a.advanced === b.advanced ? 0 : a.advanced ? 1 : -1));
+    .map((param) => ({ param, match: parameterMatchType(param, query) }))
+    .filter((entry) => entry.match !== null)
+    .sort((a, b) => {
+      const advancedDiff = a.param.advanced === b.param.advanced ? 0 : a.param.advanced ? 1 : -1;
+      if (advancedDiff !== 0) return advancedDiff;
+      return matchPriority(a.match) - matchPriority(b.match);
+    });
 
   const id = `Params${group}`;
 
@@ -392,7 +455,7 @@ const ParameterGroup = ({
         {group}
       </Text>
       <Box borderTopWidth="1px" borderTopColor="gray.200">
-        {params.map((param, key) => (
+        {params.map(({ param }, key) => (
           <HStack
             key={key}
             alignItems="center"
@@ -405,15 +468,25 @@ const ParameterGroup = ({
             _last={{ borderBottomWidth: 0 }}
           >
             <Box flex="1 1 14rem" minW={0}>
-              <HStack lineHeight={1.35}>
+              <HStack lineHeight={1.35} gap={1.5}>
                 <Box asChild fontSize="xs">
                   <label {...getHeaderProps(param)} htmlFor={param.long}>
                     <ParamName param={param} />
                   </label>
                 </Box>
+                {paramShortcut(param.long) && (
+                  <Kbd
+                    fontSize="0.65rem"
+                    title={`Press ${paramShortcut(param.long)} to toggle`}
+                  >
+                    {paramShortcut(param.long)}
+                  </Kbd>
+                )}
               </HStack>
               <Box color="gray.500" fontSize="xs" lineHeight={1.45} mt={1}>
-                {param.description}
+                {param.description ? (
+                  <HighlightedText text={param.description} query={query} />
+                ) : null}
               </Box>
             </Box>
             <Box
@@ -488,9 +561,20 @@ export default function Parameters() {
         </Box>
         <Input
           aria-label="Search parameters"
-          placeholder="Search parameters"
+          id="parameters-search"
+          placeholder="Search parameters (⌘K)"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            if (search) {
+              event.preventDefault();
+              event.stopPropagation();
+              setSearch("");
+            } else {
+              event.currentTarget.blur();
+            }
+          }}
           pl={9}
           size="sm"
           bg="white"

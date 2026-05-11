@@ -2,13 +2,14 @@ import {
   Box,
   Button,
   ButtonGroup,
+  Link as CkLink,
   Field,
   Flex,
   Grid,
   GridItem,
   Heading,
   HStack,
-  Link as CkLink,
+  Kbd,
   Stack,
   Text,
   Textarea,
@@ -34,6 +35,11 @@ import InputTextarea from "./InputTextarea";
 import LoadButton from "./LoadButton";
 import NetworkPreview from "./NetworkPreview";
 import Parameters from "./Parameters";
+import {
+  errorGraph,
+  type PreviewGraph,
+  parseInfomapPreviewResult,
+} from "./parseInfomapPreview";
 
 localforage.config({ name: "infomap" });
 
@@ -148,6 +154,20 @@ export default function InfomapOnline() {
     outputFrameRef.current = window.requestAnimationFrame(flushOutputBuffer);
   };
 
+  const [previewGraph, setPreviewGraph] = useState<PreviewGraph>(() =>
+    errorGraph("Parsing network…"),
+  );
+  const [isPreviewParsing, setIsPreviewParsing] = useState(false);
+  const previewInfomapRef = useRef<Infomap | null>(null);
+  const previewRunIdRef = useRef(0);
+  const previewTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!previewInfomapRef.current) {
+      previewInfomapRef.current = new Infomap();
+    }
+  }, []);
+
   const [infomap] = useState(() =>
     new Infomap()
       .on("data", queueInfomapOutput)
@@ -190,6 +210,73 @@ export default function InfomapOnline() {
     }
   }, [store.params.setArgs]);
 
+  const directedActive = Boolean(store.params.getParam("--directed").active);
+  const networkValue = store.network.value;
+  const networkName = store.network.name;
+  useEffect(() => {
+    drainOutputBuffer();
+    setInfomapOutput([]);
+    store.output.resetContent();
+    setPreviewGraph(errorGraph("Loading network…"));
+    setIsPreviewParsing(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [networkName]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (previewTimeoutRef.current !== null) {
+      window.clearTimeout(previewTimeoutRef.current);
+    }
+    const trimmed = networkValue?.trim() ?? "";
+    if (!trimmed) {
+      setPreviewGraph(errorGraph("Add a network to preview it here."));
+      setIsPreviewParsing(false);
+      return;
+    }
+    previewTimeoutRef.current = window.setTimeout(() => {
+      const runId = ++previewRunIdRef.current;
+      const previewInfomap = previewInfomapRef.current;
+      if (!previewInfomap) return;
+      setIsPreviewParsing(true);
+      const previewArgs = [
+        "--no-infomap",
+        "--output",
+        "json,flow",
+        "--silent",
+        directedActive ? "--directed" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      previewInfomap
+        .runAsync({
+          network: networkValue,
+          filename: networkName || "network",
+          args: previewArgs,
+        })
+        .then((result) => {
+          if (runId !== previewRunIdRef.current) return;
+          setPreviewGraph(parseInfomapPreviewResult(result));
+        })
+        .catch((error: unknown) => {
+          if (runId !== previewRunIdRef.current) return;
+          const message =
+            error instanceof Error ? error.message : String(error);
+          setPreviewGraph(errorGraph(message));
+        })
+        .finally(() => {
+          if (runId === previewRunIdRef.current) {
+            setIsPreviewParsing(false);
+          }
+        });
+    }, 300);
+
+    return () => {
+      if (previewTimeoutRef.current !== null) {
+        window.clearTimeout(previewTimeoutRef.current);
+        previewTimeoutRef.current = null;
+      }
+    };
+  }, [networkValue, networkName, directedActive]);
+
   const onInputChange =
     (activeInput: InputName) =>
     ({ name, value }: InputFile) => {
@@ -223,6 +310,76 @@ export default function InfomapOnline() {
     reader.readAsText(file, "utf-8");
   };
 
+  const canRun = !hasArgsError && !isRunning;
+  const canRunRef = useRef(canRun);
+  canRunRef.current = canRun;
+  const runRef = useRef<() => void>(() => {});
+  const storeRef = useRef(store);
+  storeRef.current = store;
+  useEffect(() => {
+    const isEditableTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      return target.isContentEditable;
+    };
+
+    const togglePresetParam = (name: string) => {
+      const param = storeRef.current.params.getParam(name);
+      if (!param) return;
+      storeRef.current.params.toggle(param);
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        if (!canRunRef.current) return;
+        event.preventDefault();
+        runRef.current();
+        return;
+      }
+
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        (event.key === "k" || event.key === "K")
+      ) {
+        const input = document.getElementById("parameters-search");
+        if (input instanceof HTMLInputElement) {
+          event.preventDefault();
+          input.focus();
+          input.select();
+        }
+        return;
+      }
+
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isEditableTarget(event.target)) return;
+
+      if (event.key === "2") {
+        event.preventDefault();
+        togglePresetParam("--two-level");
+        return;
+      }
+      if (event.key === "d" || event.key === "D") {
+        event.preventDefault();
+        togglePresetParam("--directed");
+        return;
+      }
+      if (event.key === "n" || event.key === "N") {
+        event.preventDefault();
+        setTab("network");
+        return;
+      }
+      if (event.key === "c" || event.key === "C") {
+        event.preventDefault();
+        setTab("console");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const run = () => {
     store.output.resetContent();
 
@@ -246,6 +403,7 @@ export default function InfomapOnline() {
       return;
     }
   };
+  runRef.current = run;
 
   const onCopyClusters = () => store.output.setDownloaded(true);
 
@@ -292,6 +450,7 @@ export default function InfomapOnline() {
         ? clusterEvaluation.numLevels
         : output.numLevels;
   const previewLevelModules = outputWins ? output.levelModules : undefined;
+  const previewModuleFlows = outputWins ? output.moduleFlows : undefined;
   const cluLevelParam = params.getParam("--clu-level");
   const previewSelectedLevel = cluLevelParam.active
     ? Number(cluLevelParam.value)
@@ -377,6 +536,10 @@ export default function InfomapOnline() {
     : inputValue;
   const consoleContent = infomapOutput.join("\n");
   const outputFiles = [...physicalFiles, ...stateFiles];
+  const runShortcut =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+      ? "⌘ + Enter"
+      : "Ctrl + Enter";
   const runButton = (
     <Button
       bg="#b22222"
@@ -388,6 +551,7 @@ export default function InfomapOnline() {
       loading={isRunning}
       onClick={run}
       size="sm"
+      title={`Run Infomap (${runShortcut})`}
     >
       <LuPlay />
       Run
@@ -578,14 +742,18 @@ export default function InfomapOnline() {
             <Button
               onClick={() => setTab("network")}
               disabled={tab === "network"}
+              title="Show network preview (N)"
             >
               Network
+              <Kbd ml={1}>N</Kbd>
             </Button>
             <Button
               onClick={() => setTab("console")}
               disabled={tab === "console"}
+              title="Show console output (C)"
             >
               Console
+              <Kbd ml={1}>C</Kbd>
             </Button>
             {outputFiles.map((file) => (
               <Button
@@ -625,14 +793,15 @@ export default function InfomapOnline() {
             loadingState={
               isRunning
                 ? "running"
-                : isInputLoading
+                : isInputLoading || isPreviewParsing
                   ? "loading"
                   : null
             }
             moduleSource={previewModuleSource}
-            network={network.value}
+            previewGraph={previewGraph}
             networkName={network.name}
             modules={previewModules}
+            moduleFlows={previewModuleFlows}
             numLevels={previewNumLevels}
             selectedLevel={previewSelectedLevel}
           />

@@ -9,17 +9,19 @@ import {
   type SimulationLinkDatum,
   type SimulationNodeDatum,
 } from "d3-force";
-import { quadtree, type Quadtree } from "d3-quadtree";
+import { type Quadtree, quadtree } from "d3-quadtree";
 import { select } from "d3-selection";
-import { zoom, zoomIdentity, type ZoomTransform } from "d3-zoom";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { LuDownload, LuMaximize } from "react-icons/lu";
+import { type ZoomTransform, zoom, zoomIdentity } from "d3-zoom";
 import {
-  hasMatchingModules,
-  parseNetworkPreview,
-  type ParsedNetwork,
-  type PreviewNode,
-} from "./networkPreviewParser";
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { LuDownload, LuMaximize } from "react-icons/lu";
+import type { PreviewGraph, PreviewNode } from "./parseInfomapPreview";
 
 type SimNode = PreviewNode &
   SimulationNodeDatum & {
@@ -30,9 +32,101 @@ type SimLink = SimulationLinkDatum<SimNode> & {
   source: SimNode;
   target: SimNode;
   weight: number;
+  flow: number;
   directed: boolean;
   width: number;
+  reverseWidth: number;
 };
+
+function hasMatchingModules(
+  nodes: PreviewNode[],
+  modules: Map<number, unknown>,
+) {
+  return nodes.some((node) => modules.has(Number(node.id)));
+}
+
+type ModuleSlice = { moduleId: ModuleId; flow: number };
+
+function computeModuleCentroids(
+  nodes: { id: string; x?: number; y?: number }[],
+  moduleFlows?: Map<number, { module: number; flow: number }[]>,
+  modules?: Map<number, ModuleId>,
+): Map<ModuleId, { x: number; y: number }> {
+  const accum = new Map<ModuleId, { x: number; y: number; w: number }>();
+  const add = (key: ModuleId, x: number, y: number, w: number) => {
+    const c = accum.get(key) ?? { x: 0, y: 0, w: 0 };
+    c.x += x * w;
+    c.y += y * w;
+    c.w += w;
+    accum.set(key, c);
+  };
+  for (const node of nodes) {
+    const x = node.x ?? 0;
+    const y = node.y ?? 0;
+    const id = Number(node.id);
+    const flows = moduleFlows?.get(id);
+    if (flows && flows.length > 0) {
+      for (const f of flows) add(f.module, x, y, f.flow);
+    } else if (modules) {
+      const m = modules.get(id);
+      if (m !== undefined) add(m, x, y, 1);
+    }
+  }
+  const result = new Map<ModuleId, { x: number; y: number }>();
+  for (const [key, c] of accum) {
+    if (c.w > 0) result.set(key, { x: c.x / c.w, y: c.y / c.w });
+  }
+  return result;
+}
+
+function sharedModuleFor(
+  sourceId: string,
+  targetId: string,
+  modules: Map<number, ModuleId>,
+  moduleFlows?: Map<number, { module: number; flow: number }[]>,
+): ModuleId | undefined {
+  const sId = Number(sourceId);
+  const tId = Number(targetId);
+  const srcFlows = moduleFlows?.get(sId);
+  const tgtFlows = moduleFlows?.get(tId);
+  if (srcFlows && tgtFlows) {
+    let bestModule: number | undefined;
+    let bestScore = 0;
+    for (const a of srcFlows) {
+      for (const b of tgtFlows) {
+        if (a.module === b.module) {
+          const score = a.flow + b.flow;
+          if (score > bestScore) {
+            bestScore = score;
+            bestModule = a.module;
+          }
+        }
+      }
+    }
+    if (bestModule !== undefined) return bestModule;
+  }
+  const sm = modules.get(sId);
+  const tm = modules.get(tId);
+  if (sm !== undefined && sm === tm) return sm;
+  return undefined;
+}
+
+function nodeModuleSlices(
+  node: { id: string },
+  modules: Map<number, ModuleId>,
+  moduleFlows?: Map<number, { module: number; flow: number }[]>,
+): ModuleSlice[] {
+  const physicalId = Number(node.id);
+  const flows = moduleFlows?.get(physicalId);
+  if (flows && flows.length > 0) {
+    return flows
+      .map(({ module, flow }) => ({ moduleId: module as ModuleId, flow }))
+      .sort((a, b) => b.flow - a.flow);
+  }
+  const moduleId = modules.get(physicalId);
+  if (moduleId !== undefined) return [{ moduleId, flow: 1 }];
+  return [];
+}
 
 type Graph = {
   nodes: SimNode[];
@@ -48,7 +142,6 @@ type HoverState = {
 type ModuleId = number | string;
 type ModuleMap = Map<number, ModuleId>;
 
-const debounceMs = 300;
 const palette = [
   "#EBC384",
   "#82A3C9",
@@ -72,12 +165,20 @@ const neutralNode = "#D7D9DD";
 const unknownNode = "#CBD0D6";
 const linkColor = "#55565A";
 
-const linkWidthRange: [number, number] = [2, 10];
+const linkWidthRange: [number, number] = [1, 5];
 
-function createGraph(parsed: Extract<ParsedNetwork, { status: "ok" }>): Graph {
+const radiusBounds: [number, number] = [4, 20];
+const radiusBase = 8;
+const linkWidthBase = 2;
+
+function createGraph(parsed: Extract<PreviewGraph, { status: "ok" }>): Graph {
   const nodeCount = parsed.nodes.length;
-  const radiusScale = (degree: number) =>
-    Math.max(7, Math.min(20, 7 + Math.sqrt(degree) * 2.8));
+  const meanNodeFlow = nodeCount > 0 ? 1 / nodeCount : 1;
+  const radiusFor = (flow: number) => {
+    const ratio = Math.max(0, flow) / meanNodeFlow;
+    const r = radiusBase * Math.sqrt(ratio);
+    return Math.max(radiusBounds[0], Math.min(radiusBounds[1], r));
+  };
 
   const nodes: SimNode[] = parsed.nodes.map((node, index) => {
     const angle = (index / Math.max(1, nodeCount)) * Math.PI * 2;
@@ -85,33 +186,50 @@ function createGraph(parsed: Extract<ParsedNetwork, { status: "ok" }>): Graph {
 
     return {
       ...node,
-      radius: radiusScale(node.degree),
+      radius: radiusFor(node.flow),
       x: Math.cos(angle) * ring,
       y: Math.sin(angle) * ring,
     };
   });
-  nodes.sort((a, b) => b.degree - a.degree);
+  nodes.sort((a, b) => b.flow - a.flow);
   const nodesById = new Map(nodes.map((node) => [node.id, node]));
-  const rawWeights = parsed.links.map((link) => link.weight);
-  const wMin = rawWeights.length ? Math.min(...rawWeights) : 1;
-  const wMax = rawWeights.length ? Math.max(...rawWeights) : 1;
-  const wRange = wMax - wMin || 1;
-  const ratio = wMax / Math.max(1e-9, wMin);
-  // 0 when all weights are similar, 1 when they span more than 16x.
-  const spread = Math.min(1, Math.max(0, (Math.log2(ratio) - 1) / 3));
-  const widthFor = (weight: number) =>
-    linkWidthRange[0] +
-    ((weight - wMin) / wRange) *
-      spread *
-      (linkWidthRange[1] - linkWidthRange[0]);
+
+  const linkCount = parsed.links.length;
+  const meanLinkFlow = linkCount > 0 ? 1 / linkCount : 1;
+  const widthFor = (flow: number, weight: number) => {
+    const value = flow > 0 ? flow : Math.max(0, weight);
+    if (value <= 0) return linkWidthRange[0];
+    const reference = flow > 0 ? meanLinkFlow : 1;
+    const ratio = value / reference;
+    const w = linkWidthBase * Math.sqrt(ratio);
+    return Math.max(linkWidthRange[0], Math.min(linkWidthRange[1], w));
+  };
   const links = parsed.links
     .map((link) => {
       const source = nodesById.get(link.source);
       const target = nodesById.get(link.target);
       if (!source || !target) return null;
-      return { ...link, source, target, width: widthFor(link.weight) };
+      return {
+        ...link,
+        source,
+        target,
+        width: widthFor(link.flow, link.weight),
+        reverseWidth: 0,
+      };
     })
     .filter((link): link is SimLink => Boolean(link));
+
+  const directedWidths = new Map<string, number>();
+  for (const link of links) {
+    if (link.directed) {
+      directedWidths.set(`${link.source.id}->${link.target.id}`, link.width);
+    }
+  }
+  for (const link of links) {
+    if (!link.directed) continue;
+    link.reverseWidth =
+      directedWidths.get(`${link.target.id}->${link.source.id}`) ?? 0;
+  }
   links.sort((a, b) => b.width - a.width);
 
   return { nodes, links };
@@ -166,13 +284,22 @@ function renderForExport(
   opts: {
     showArrows: boolean;
     modules: ModuleMap;
+    moduleFlows?: Map<number, { module: number; flow: number }[]>;
     coloredByModules: boolean;
     transformX: number;
     transformY: number;
     scale: number;
   },
 ) {
-  const { showArrows, modules, coloredByModules, transformX, transformY, scale } = opts;
+  const {
+    showArrows,
+    modules,
+    moduleFlows,
+    coloredByModules,
+    transformX,
+    transformY,
+    scale,
+  } = opts;
   const nodeStrokeWorld = 2;
 
   ctx.save();
@@ -192,14 +319,12 @@ function renderForExport(
   const arrows: ArrowSpec[] = [];
 
   for (const link of graph.links) {
-    const sourceModule = modules.get(Number(link.source.id));
-    const targetModule = modules.get(Number(link.target.id));
-    const intraModule =
-      coloredByModules &&
-      sourceModule !== undefined &&
-      sourceModule === targetModule;
+    const sharedModule = coloredByModules
+      ? sharedModuleFor(link.source.id, link.target.id, modules, moduleFlows)
+      : undefined;
+    const intraModule = sharedModule !== undefined;
     const baseStroke = intraModule
-      ? shadeColor(moduleColor(sourceModule), -42)
+      ? shadeColor(moduleColor(sharedModule!), -42)
       : linkColor;
     const fade = intraModule ? 0.42 : 0.26;
     const stroke = fadeToBackground(baseStroke, fade);
@@ -212,6 +337,8 @@ function renderForExport(
     const ty = link.target.y ?? 0;
     let endX = tx;
     let endY = ty;
+    let startX = sx;
+    let startY = sy;
 
     if (directedLink) {
       const dx = tx - sx;
@@ -220,13 +347,38 @@ function renderForExport(
       if (length > 0) {
         const ux = dx / length;
         const uy = dy / length;
-        const head = Math.max(2.5, lineWidth * 2.6);
         const tipDistance = link.target.radius + nodeStrokeWorld * 0.5;
+        const reverseTipDistance =
+          link.reverseWidth > 0
+            ? link.source.radius + nodeStrokeWorld * 0.5
+            : 0;
+        const availableForHead =
+          length - tipDistance - reverseTipDistance;
+        const headCap = Math.min(
+          link.target.radius * 1.1,
+          link.reverseWidth > 0
+            ? Math.max(2, availableForHead * 0.4)
+            : length * 0.35,
+        );
+        const head = Math.max(2, Math.min(headCap, lineWidth * 4));
         const baseDistance = tipDistance + head;
         const tipX = tx - ux * tipDistance;
         const tipY = ty - uy * tipDistance;
         endX = tx - ux * baseDistance;
         endY = ty - uy * baseDistance;
+        if (link.reverseWidth > 0) {
+          const reverseHeadCap = Math.min(
+            link.source.radius * 1.1,
+            Math.max(2, availableForHead * 0.4),
+          );
+          const reverseHead = Math.max(
+            2,
+            Math.min(reverseHeadCap, link.reverseWidth * 4),
+          );
+          const startOffset = reverseTipDistance + reverseHead;
+          startX = sx + ux * startOffset;
+          startY = sy + uy * startOffset;
+        }
         arrows.push({
           tipX,
           tipY,
@@ -234,33 +386,66 @@ function renderForExport(
           baseY: endY,
           ux,
           uy,
-          halfWidth: head * 0.45,
+          halfWidth: Math.max(
+            head * 0.45,
+            Math.max(lineWidth, link.reverseWidth) * 0.7,
+          ),
           color: stroke,
         });
       }
     }
 
     ctx.beginPath();
-    ctx.moveTo(sx, sy);
+    ctx.moveTo(startX, startY);
     ctx.lineTo(endX, endY);
     ctx.strokeStyle = stroke;
     ctx.lineWidth = lineWidth;
     ctx.stroke();
   }
 
+  const centroids = computeModuleCentroids(graph.nodes, moduleFlows, modules);
   for (const node of graph.nodes) {
-    const moduleId = modules.get(Number(node.id));
-    const fill =
-      coloredByModules && moduleId !== undefined
-        ? moduleColor(moduleId)
-        : coloredByModules
-          ? unknownNode
-          : neutralNode;
+    const nx = node.x ?? 0;
+    const ny = node.y ?? 0;
+    const slices = coloredByModules
+      ? nodeModuleSlices(node, modules, moduleFlows)
+      : [];
 
+    if (slices.length > 1) {
+      const total = slices.reduce((acc, s) => acc + s.flow, 0) || 1;
+      const dominant = slices[0];
+      const centroid = centroids.get(dominant.moduleId);
+      let targetAngle = -Math.PI / 2;
+      if (centroid && (centroid.x !== nx || centroid.y !== ny)) {
+        targetAngle = Math.atan2(centroid.y - ny, centroid.x - nx);
+      }
+      const dominantWidth = (dominant.flow / total) * Math.PI * 2;
+      let startAngle = targetAngle - dominantWidth / 2;
+      for (const slice of slices) {
+        const angle = (slice.flow / total) * Math.PI * 2;
+        const endAngle = startAngle + angle;
+        ctx.beginPath();
+        ctx.moveTo(nx, ny);
+        ctx.arc(nx, ny, node.radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = moduleColor(slice.moduleId);
+        ctx.fill();
+        startAngle = endAngle;
+      }
+    } else {
+      const fill =
+        slices.length === 1
+          ? moduleColor(slices[0].moduleId)
+          : coloredByModules
+            ? unknownNode
+            : neutralNode;
+      ctx.beginPath();
+      ctx.arc(nx, ny, node.radius, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
     ctx.beginPath();
-    ctx.arc(node.x ?? 0, node.y ?? 0, node.radius, 0, Math.PI * 2);
-    ctx.fillStyle = fill;
-    ctx.fill();
+    ctx.arc(nx, ny, node.radius, 0, Math.PI * 2);
     ctx.lineWidth = nodeStrokeWorld;
     ctx.strokeStyle = "#FFFFFF";
     ctx.stroke();
@@ -287,10 +472,14 @@ function renderForExport(
   ctx.lineWidth = 4 / scale;
   for (const node of graph.nodes) {
     const fontSize = Math.max(10, node.radius * 0.95);
-    const moduleId = modules.get(Number(node.id));
+    const slices = coloredByModules
+      ? nodeModuleSlices(node, modules, moduleFlows)
+      : [];
+    const tied =
+      slices.length > 1 && slices[0].flow === slices[1].flow;
     const labelColor =
-      coloredByModules && moduleId !== undefined
-        ? shadeColor(moduleColor(moduleId), -70)
+      slices.length > 0 && !tied
+        ? shadeColor(moduleColor(slices[0].moduleId), -70)
         : "#2D3748";
     ctx.font = `${fontSize}px sans-serif`;
     const x = (node.x ?? 0) + node.radius + 3;
@@ -304,31 +493,32 @@ function renderForExport(
   ctx.restore();
 }
 
-function parsedSignature(parsed: ParsedNetwork) {
-  if (parsed.status !== "ok") {
-    return `${parsed.status}:${parsed.message}:${parsed.nodes.length}:${parsed.links.length}`;
+function previewGraphSignature(graph: PreviewGraph) {
+  if (graph.status !== "ok") {
+    return `${graph.status}:${graph.message}`;
   }
 
   return [
-    parsed.status,
-    parsed.nodes.map((node) => `${node.id}:${node.label}`).join("|"),
-    parsed.links
-      .map((link) => `${link.source}:${link.target}:${link.weight}`)
-      .join("|"),
+    graph.status,
+    graph.isStateNetwork ? "states" : "physical",
+    graph.nodes.length,
+    graph.links.length,
+    graph.numLevels,
   ].join("::");
 }
 
-export default function NetworkPreview({
+function NetworkPreviewImpl({
   codeLength,
   directed = false,
   levelModules,
   loadingState = null,
   lockedLevelLabel,
   moduleSource = "latest Infomap result",
-  network,
   networkName,
   modules,
+  moduleFlows,
   numLevels,
+  previewGraph,
   selectedLevel,
 }: {
   codeLength?: number | null;
@@ -337,10 +527,11 @@ export default function NetworkPreview({
   loadingState?: "loading" | "running" | null;
   lockedLevelLabel?: string;
   moduleSource?: string;
-  network: string;
   networkName?: string;
   modules: ModuleMap;
+  moduleFlows?: Map<number, { module: number; flow: number }[]>;
   numLevels?: number | null;
+  previewGraph: PreviewGraph;
   selectedLevel?: number | null;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -393,27 +584,14 @@ export default function NetworkPreview({
     card.style.left = `${Math.max(8, Math.min(vx, rect.right - 200))}px`;
     card.style.top = `${vy}px`;
   };
-  const [parsed, setParsed] = useState(() => parseNetworkPreview(network));
+  const parsed = previewGraph;
   const [hover, setHover] = useState<HoverState>(null);
   const [level, setLevel] = useState(1);
   const [isDownloading, setIsDownloading] = useState(false);
-  const parsedKey = useMemo(() => parsedSignature(parsed), [parsed]);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      const nextParsed = parseNetworkPreview(network);
-      const nextKey = parsedSignature(nextParsed);
-      setParsed((currentParsed) =>
-        parsedSignature(currentParsed) === nextKey ? currentParsed : nextParsed,
-      );
-    }, debounceMs);
-
-    return () => window.clearTimeout(timeout);
-  }, [network]);
+  const parsedKey = useMemo(() => previewGraphSignature(parsed), [parsed]);
 
   const levelLocked = selectedLevel !== null && selectedLevel !== undefined;
   const moduleLevelCount = Math.max(1, (numLevels ?? 1) - 1);
-  const hasLevelControl = levelLocked || moduleLevelCount > 1;
   const codeLengthText = formatCodeLength(codeLength);
   const activeLevel =
     levelLocked && selectedLevel === -1
@@ -426,8 +604,13 @@ export default function NetworkPreview({
   const activeModules = levelModules?.get(activeLevel ?? 1) ?? modules;
   const coloredByModules =
     parsed.status === "ok" && hasMatchingModules(parsed.nodes, activeModules);
+  const hasLevelControl =
+    coloredByModules && (levelLocked || moduleLevelCount > 1);
+  const usePieFlows = activeLevel === moduleLevelCount || moduleLevelCount <= 1;
   const modulesRef = useRef(activeModules);
   const coloredByModulesRef = useRef(coloredByModules);
+  const moduleFlowsRef = useRef<typeof moduleFlows>(undefined);
+  moduleFlowsRef.current = usePieFlows ? moduleFlows : undefined;
 
   const moduleLabel = useMemo(() => {
     if (parsed.status !== "ok" || !coloredByModules) return "";
@@ -619,6 +802,7 @@ export default function NetworkPreview({
         renderForExport(ctx, graph, {
           showArrows: directedRef.current,
           modules: modulesRef.current,
+          moduleFlows: moduleFlowsRef.current,
           coloredByModules: coloredByModulesRef.current,
           transformX: -minX * scale,
           transformY: -minY * scale,
@@ -648,8 +832,7 @@ export default function NetworkPreview({
   drawRef.current = draw;
   function draw() {
     const canvas = canvasRef.current;
-    const graph = graphRef.current;
-    if (!canvas || !graph) return;
+    if (!canvas) return;
 
     const context = canvas.getContext("2d");
     if (!context) return;
@@ -657,6 +840,9 @@ export default function NetworkPreview({
     const { width, height, dpr } = dimensionsRef.current;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, width, height);
+
+    const graph = graphRef.current;
+    if (!graph) return;
     context.save();
     context.translate(transformRef.current.x, transformRef.current.y);
     context.scale(transformRef.current.k, transformRef.current.k);
@@ -702,16 +888,20 @@ export default function NetworkPreview({
       const isConnected =
         hovered !== null &&
         (link.source.id === hoveredId || link.target.id === hoveredId);
-      const sourceModule = currentModules.get(Number(link.source.id));
-      const targetModule = currentModules.get(Number(link.target.id));
-      const intraModule =
-        currentColoredByModules &&
-        sourceModule !== undefined &&
-        sourceModule === targetModule;
+      const sharedModule = currentColoredByModules
+        ? sharedModuleFor(
+            link.source.id,
+            link.target.id,
+            currentModules,
+            moduleFlowsRef.current,
+          )
+        : undefined;
+      const intraModule = sharedModule !== undefined;
       const directedLink = showArrows || link.directed;
-      const baseStroke = intraModule
-        ? shadeColor(moduleColor(sourceModule), -42)
-        : linkColor;
+      const baseStroke =
+        sharedModule !== undefined
+          ? shadeColor(moduleColor(sharedModule), -42)
+          : linkColor;
       const fade = hovered
         ? isConnected
           ? intraModule
@@ -726,6 +916,8 @@ export default function NetworkPreview({
 
       let endX = tx;
       let endY = ty;
+      let startX = sx;
+      let startY = sy;
       if (directedLink) {
         const dx = tx - sx;
         const dy = ty - sy;
@@ -733,13 +925,38 @@ export default function NetworkPreview({
         if (length > 0) {
           const ux = dx / length;
           const uy = dy / length;
-          const head = Math.max(2.5, lineWidth * 2.6);
           const tipDistance = link.target.radius + nodeStrokeWorld * 0.5;
+          const reverseTipDistance =
+            link.reverseWidth > 0
+              ? link.source.radius + nodeStrokeWorld * 0.5
+              : 0;
+          const availableForHead =
+            length - tipDistance - reverseTipDistance;
+          const headCap = Math.min(
+            link.target.radius * 1.1,
+            link.reverseWidth > 0
+              ? Math.max(2, availableForHead * 0.4)
+              : length * 0.35,
+          );
+          const head = Math.max(2, Math.min(headCap, lineWidth * 4));
           const baseDistance = tipDistance + head;
           const tipX = tx - ux * tipDistance;
           const tipY = ty - uy * tipDistance;
           endX = tx - ux * baseDistance;
           endY = ty - uy * baseDistance;
+          if (link.reverseWidth > 0) {
+            const reverseHeadCap = Math.min(
+              link.source.radius * 1.1,
+              Math.max(2, availableForHead * 0.4),
+            );
+            const reverseHead = Math.max(
+              2,
+              Math.min(reverseHeadCap, link.reverseWidth * 4),
+            );
+            const startOffset = reverseTipDistance + reverseHead;
+            startX = sx + ux * startOffset;
+            startY = sy + uy * startOffset;
+          }
           arrows.push({
             tipX,
             tipY,
@@ -747,14 +964,17 @@ export default function NetworkPreview({
             baseY: endY,
             ux,
             uy,
-            halfWidth: head * 0.45,
+            halfWidth: Math.max(
+              head * 0.45,
+              Math.max(lineWidth, link.reverseWidth) * 0.7,
+            ),
             color: stroke,
           });
         }
       }
 
       context.beginPath();
-      context.moveTo(sx, sy);
+      context.moveTo(startX, startY);
       context.lineTo(endX, endY);
       context.strokeStyle = stroke;
       context.lineWidth = lineWidth;
@@ -762,24 +982,58 @@ export default function NetworkPreview({
     }
 
     const minVisibleNodeRadiusWorld = 0.4 / zoomLevel;
+    const moduleCentroids = currentColoredByModules
+      ? computeModuleCentroids(
+          graph.nodes,
+          moduleFlowsRef.current,
+          currentModules,
+        )
+      : new Map<ModuleId, { x: number; y: number }>();
     for (const node of graph.nodes) {
       const nx = node.x ?? 0;
       const ny = node.y ?? 0;
       if (isOffscreen(nx, ny)) continue;
       if (node.radius < minVisibleNodeRadiusWorld) continue;
-      const moduleId = currentModules.get(Number(node.id));
-      const fill =
-        currentColoredByModules && moduleId !== undefined
-          ? moduleColor(moduleId)
-          : currentColoredByModules
-            ? unknownNode
-            : neutralNode;
+      const slices = currentColoredByModules
+        ? nodeModuleSlices(node, currentModules, moduleFlowsRef.current)
+        : [];
       const isHovered = hoveredId === node.id;
 
+      if (slices.length > 1) {
+        const total = slices.reduce((acc, s) => acc + s.flow, 0) || 1;
+        const dominant = slices[0];
+        const centroid = moduleCentroids.get(dominant.moduleId);
+        let targetAngle = -Math.PI / 2;
+        if (centroid && (centroid.x !== nx || centroid.y !== ny)) {
+          targetAngle = Math.atan2(centroid.y - ny, centroid.x - nx);
+        }
+        const dominantWidth = (dominant.flow / total) * Math.PI * 2;
+        let startAngle = targetAngle - dominantWidth / 2;
+        for (const slice of slices) {
+          const angle = (slice.flow / total) * Math.PI * 2;
+          const endAngle = startAngle + angle;
+          context.beginPath();
+          context.moveTo(nx, ny);
+          context.arc(nx, ny, node.radius, startAngle, endAngle);
+          context.closePath();
+          context.fillStyle = moduleColor(slice.moduleId);
+          context.fill();
+          startAngle = endAngle;
+        }
+      } else {
+        const fill =
+          slices.length === 1
+            ? moduleColor(slices[0].moduleId)
+            : currentColoredByModules
+              ? unknownNode
+              : neutralNode;
+        context.beginPath();
+        context.arc(nx, ny, node.radius, 0, Math.PI * 2);
+        context.fillStyle = fill;
+        context.fill();
+      }
       context.beginPath();
       context.arc(nx, ny, node.radius, 0, Math.PI * 2);
-      context.fillStyle = fill;
-      context.fill();
       context.lineWidth = nodeStrokeWorld;
       context.strokeStyle = isHovered ? "#2D3748" : "#FFFFFF";
       context.stroke();
@@ -809,10 +1063,12 @@ export default function NetworkPreview({
 
     const renderLabel = (node: SimNode) => {
       const fontSize = Math.max(10, node.radius * 0.95);
-      const moduleId = currentModules.get(Number(node.id));
+      const slices = currentColoredByModules
+        ? nodeModuleSlices(node, currentModules, moduleFlowsRef.current)
+        : [];
       const labelColor =
-        currentColoredByModules && moduleId !== undefined
-          ? shadeColor(moduleColor(moduleId), -70)
+        slices.length > 0
+          ? shadeColor(moduleColor(slices[0].moduleId), -70)
           : "#2D3748";
       context.font = `${fontSize}px sans-serif`;
       const x = (node.x ?? 0) + node.radius + 3;
@@ -873,6 +1129,8 @@ export default function NetworkPreview({
       .scaleExtent([0.01, 8])
       .filter((event) => {
         if (event.type === "dblclick") return false;
+        if (event.type === "wheel" && (event.shiftKey || event.altKey))
+          return false;
         if (event.type === "mousedown" || event.type === "touchstart") {
           return !zoomStartsOnNode(event);
         }
@@ -885,10 +1143,27 @@ export default function NetworkPreview({
         requestDraw();
       });
 
+    const onWheelPan = (event: WheelEvent) => {
+      if (!event.shiftKey && !event.altKey) return;
+      event.preventDefault();
+      const t = transformRef.current;
+      const next = t.translate(-event.deltaX / t.k, -event.deltaY / t.k);
+      transformRef.current = next;
+      select(canvas).call(
+        zoom<HTMLCanvasElement, unknown>().transform,
+        next,
+      );
+      autoFitActiveRef.current = false;
+      positionHoverCard();
+      requestDraw();
+    };
+
     select(canvas).call(zoomBehavior).on("dblclick.zoom", null);
+    canvas.addEventListener("wheel", onWheelPan, { passive: false });
 
     return () => {
       select(canvas).on(".zoom", null);
+      canvas.removeEventListener("wheel", onWheelPan);
     };
   }, []);
 
@@ -917,7 +1192,7 @@ export default function NetworkPreview({
     const linkScale = (weight: number) => (weight - wMin) / wRange;
     const linkForce = forceLink<SimNode, SimLink>(graph.links)
       .id((node) => node.id)
-      .distance((link) => lerp(linkScale(link.weight), 60, 12));
+      .distance((link) => lerp(linkScale(link.weight), 30, 15));
     const baseStrength = linkForce.strength();
     linkForce.strength((link, index, links) => {
       const factor = lerp(linkScale(link.weight), 0.5, 1);
@@ -1048,6 +1323,15 @@ export default function NetworkPreview({
     hover && coloredByModules
       ? activeModules.get(Number(hover.node.id))
       : undefined;
+  const hoverSlices =
+    hover && coloredByModules
+      ? nodeModuleSlices(
+          hover.node,
+          activeModules,
+          moduleFlowsRef.current,
+        )
+      : [];
+  const hoverModuleTotal = hoverSlices.reduce((sum, s) => sum + s.flow, 0);
   const hoverPath = useMemo(() => {
     if (!hover || !levelModules) return null;
     const id = Number(hover.node.id);
@@ -1234,7 +1518,7 @@ export default function NetworkPreview({
         </HStack>
       )}
 
-      {parsed.status !== "ok" && (
+      {parsed.status !== "ok" && !loadingState && (
         <Box
           bg="whiteAlpha.900"
           borderWidth="1px"
@@ -1281,11 +1565,44 @@ export default function NetworkPreview({
             </Text>
           )}
           <Text color="whiteAlpha.800" fontSize="xs" mb={0}>
-            Degree {hover.node.degree}
-            {moduleId !== undefined && !hoverPath
-              ? ` · Module ${moduleId}`
-              : ""}
+            Flow {hover.node.flow.toFixed(4)}
+            {hover.node.degree > 0 ? ` · Degree ${hover.node.degree}` : ""}
+            {hoverSlices.length === 1 && !hoverPath
+              ? ` · Module ${hoverSlices[0].moduleId}`
+              : moduleId !== undefined && hoverSlices.length === 0 && !hoverPath
+                ? ` · Module ${moduleId}`
+                : ""}
           </Text>
+          {hoverSlices.length > 1 && (
+            <Box mt={1}>
+              {hoverSlices.map((slice) => {
+                const share =
+                  hoverModuleTotal > 0
+                    ? Math.round((slice.flow / hoverModuleTotal) * 100)
+                    : 0;
+                return (
+                  <Text
+                    key={String(slice.moduleId)}
+                    color="whiteAlpha.800"
+                    fontSize="xs"
+                    mb={0}
+                  >
+                    <Box
+                      as="span"
+                      display="inline-block"
+                      w="0.6rem"
+                      h="0.6rem"
+                      borderRadius="full"
+                      mr={1.5}
+                      verticalAlign="middle"
+                      bg={moduleColor(slice.moduleId)}
+                    />
+                    Module {slice.moduleId} · {share}%
+                  </Text>
+                );
+              })}
+            </Box>
+          )}
           {hoverPath && (
             <Text color="whiteAlpha.800" fontSize="xs" mb={0}>
               Path {hoverPath}
@@ -1296,3 +1613,6 @@ export default function NetworkPreview({
     </Box>
   );
 }
+
+const NetworkPreview = memo(NetworkPreviewImpl);
+export default NetworkPreview;

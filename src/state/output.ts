@@ -9,6 +9,7 @@ export type OutputState = Record<OutputKey, string> & {
   downloaded: boolean;
   levelModules: Map<number, Map<number, string>>;
   modules: Map<number, number>;
+  moduleFlows: ModuleFlowMap;
   numLevels: number | null;
 };
 
@@ -35,6 +36,7 @@ export const emptyOutput = (): OutputState => ({
   downloaded: false,
   levelModules: new Map(),
   modules: new Map(),
+  moduleFlows: new Map(),
   numLevels: null,
 });
 
@@ -60,23 +62,53 @@ export function stateFiles(output: OutputState, name: string) {
 export function parseCluModules(clu: string) {
   if (!clu) return new Map<number, number>();
 
+  const flows = parseCluModuleFlows(clu);
   const modules = new Map<number, number>();
-  const lines = clu.split(/\r?\n/).filter(Boolean);
+  for (const [id, entries] of flows) {
+    let best = entries[0];
+    for (const entry of entries) {
+      if (entry.flow > best.flow) best = entry;
+    }
+    modules.set(id, best.module);
+  }
+  return modules;
+}
+
+export type ModuleFlow = { module: number; flow: number };
+export type ModuleFlowMap = Map<number, ModuleFlow[]>;
+
+export function parseCluModuleFlows(clu: string): ModuleFlowMap {
+  const result: ModuleFlowMap = new Map();
+  if (!clu) return result;
+
+  const lines = clu.split(/\r?\n/);
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("%")) {
       continue;
     }
-    const [id, moduleId] = trimmed.split(/\s+/).map(Number);
-    if (Number.isFinite(id) && Number.isFinite(moduleId)) {
-      modules.set(id, moduleId);
+    const tokens = trimmed.split(/\s+/);
+    if (tokens.length < 2) continue;
+    const id = Number(tokens[0]);
+    const moduleId = Number(tokens[1]);
+    const flow = tokens.length >= 3 ? Number(tokens[2]) : 1;
+    if (!Number.isFinite(id) || !Number.isFinite(moduleId)) continue;
+    let arr = result.get(id);
+    if (!arr) {
+      arr = [];
+      result.set(id, arr);
     }
+    arr.push({ module: moduleId, flow: Number.isFinite(flow) ? flow : 1 });
   }
-  return modules;
+  return result;
 }
 
 export function parseModules(output: OutputState) {
   return parseCluModules(output.clu_states || output.clu);
+}
+
+export function parseModuleFlows(output: OutputState) {
+  return parseCluModuleFlows(output.clu || output.clu_states);
 }
 
 export function parseTreeLevelModules(tree: string) {
@@ -194,6 +226,7 @@ export function applyOutputContent(
   }
 
   next.modules = parseModules(next);
+  next.moduleFlows = parseModuleFlows(next);
   next.levelModules = parseTreeLevelModules(
     next.tree_states || next.ftree_states || next.tree || next.ftree,
   );
