@@ -11,7 +11,7 @@ export default function Logo({ size = 40, href = "/" }: Props) {
     <NextLink href={href}>
       <HStack gap={2.5} color="gray.900" textDecoration="none">
         <chakra.img
-          src="/twocolormapicon_whiteboarder.svg"
+          src="/assets/img/twocolormapicon_whiteboarder.svg"
           alt=""
           width={`${size}px`}
           height={`${size}px`}

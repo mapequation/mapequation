@@ -39,7 +39,7 @@ const installMethods = [
     ],
     links: [
       ["PyPI", "//pypi.org/project/infomap/"],
-      ["Python API reference", "//mapequation.github.io/infomap/python"],
+      ["Python API reference", "//mapequation.github.io/infomap-python-docs/"],
     ],
   },
   {
