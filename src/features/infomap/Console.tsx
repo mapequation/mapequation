@@ -12,13 +12,22 @@ export default function Console({
   ...props
 }: ConsoleProps) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const frameRef = useRef(0);
 
   useEffect(() => {
-    const currentRef = ref.current;
-    if (!currentRef) return;
-
-    const { scrollHeight, clientHeight } = currentRef;
-    currentRef.scrollTop = scrollHeight - clientHeight;
+    if (frameRef.current) return;
+    frameRef.current = window.requestAnimationFrame(() => {
+      frameRef.current = 0;
+      const currentRef = ref.current;
+      if (!currentRef) return;
+      currentRef.scrollTop = currentRef.scrollHeight - currentRef.clientHeight;
+    });
+    return () => {
+      if (frameRef.current) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = 0;
+      }
+    };
   }, [children]);
 
   return (

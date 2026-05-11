@@ -24,7 +24,8 @@ const paramShortcuts: Record<string, string> = {
   "--two-level": "2",
   "--directed": "D",
 };
-const paramShortcut = (long: string): string | undefined => paramShortcuts[long];
+const paramShortcut = (long: string): string | undefined =>
+  paramShortcuts[long];
 
 type ParameterMatch = "name" | "description" | null;
 
@@ -57,13 +58,7 @@ const parameterMatchType = (
 const parameterMatches = (param: InfomapParameter, query: string) =>
   parameterMatchType(param, query) !== null;
 
-function HighlightedText({
-  text,
-  query,
-}: {
-  text: string;
-  query: string;
-}) {
+function HighlightedText({ text, query }: { text: string; query: string }) {
   if (!query) return <>{text}</>;
   const lower = text.toLowerCase();
   const parts: React.ReactNode[] = [];
@@ -154,7 +149,8 @@ function ToggleSwitch({
   );
 }
 
-const DropdownParameter = ({ param }) => {
+// biome-ignore lint/suspicious/noExplicitAny: param shape varies per control
+const DropdownParameter = ({ param }: { param: any }) => {
   const store = useStore();
 
   const selectStyle = {
@@ -215,13 +211,13 @@ const DropdownParameter = ({ param }) => {
   );
 };
 
-const InputParameter = ({ param }) => {
+// biome-ignore lint/suspicious/noExplicitAny: param shape varies per control
+const InputParameter = ({ param }: { param: any }) => {
   const store = useStore();
 
   return (
     <Input
       id={param.long}
-      //maxW="50%"
       w="5.5rem"
       bg="white"
       borderColor={param.active ? "blue.300" : "gray.300"}
@@ -238,7 +234,8 @@ const InputParameter = ({ param }) => {
   );
 };
 
-const FileInputParameter = ({ param }) => {
+// biome-ignore lint/suspicious/noExplicitAny: param shape varies per control
+const FileInputParameter = ({ param }: { param: any }) => {
   const store = useStore();
 
   const onDrop = (files) => {
@@ -284,7 +281,7 @@ const FileInputParameter = ({ param }) => {
   );
 };
 
-const ToggleParameter = ({ param }) => {
+const ToggleParameter = ({ param }: { param: InfomapParameter }) => {
   const store = useStore();
 
   return (
@@ -297,7 +294,8 @@ const ToggleParameter = ({ param }) => {
   );
 };
 
-const IncrementalParameter = ({ param }) => {
+// biome-ignore lint/suspicious/noExplicitAny: param shape varies per control
+const IncrementalParameter = ({ param }: { param: any }) => {
   const store = useStore();
   const { value, maxValue, stringValue } = param;
 
@@ -324,7 +322,7 @@ const IncrementalParameter = ({ param }) => {
   );
 };
 
-const ParameterControl = ({ param }) => {
+const ParameterControl = ({ param }: { param: InfomapParameter }) => {
   if (param.dropdown) return <DropdownParameter param={param} />;
   if (param.input) return <InputParameter param={param} />;
   if (param.incremental) return <IncrementalParameter param={param} />;
@@ -430,7 +428,8 @@ const ParameterGroup = ({
     .map((param) => ({ param, match: parameterMatchType(param, query) }))
     .filter((entry) => entry.match !== null)
     .sort((a, b) => {
-      const advancedDiff = a.param.advanced === b.param.advanced ? 0 : a.param.advanced ? 1 : -1;
+      const advancedDiff =
+        a.param.advanced === b.param.advanced ? 0 : a.param.advanced ? 1 : -1;
       if (advancedDiff !== 0) return advancedDiff;
       return matchPriority(a.match) - matchPriority(b.match);
     });

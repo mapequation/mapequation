@@ -158,15 +158,9 @@ export default function InfomapOnline() {
     errorGraph("Parsing network…"),
   );
   const [isPreviewParsing, setIsPreviewParsing] = useState(false);
-  const previewInfomapRef = useRef<Infomap | null>(null);
+  const [previewInfomap] = useState(() => new Infomap());
   const previewRunIdRef = useRef(0);
   const previewTimeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!previewInfomapRef.current) {
-      previewInfomapRef.current = new Infomap();
-    }
-  }, []);
 
   const [infomap] = useState(() =>
     new Infomap()
@@ -234,8 +228,6 @@ export default function InfomapOnline() {
     }
     previewTimeoutRef.current = window.setTimeout(() => {
       const runId = ++previewRunIdRef.current;
-      const previewInfomap = previewInfomapRef.current;
-      if (!previewInfomap) return;
       setIsPreviewParsing(true);
       const previewArgs = [
         "--no-infomap",
@@ -320,7 +312,8 @@ export default function InfomapOnline() {
     const isEditableTarget = (target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) return false;
       const tag = target.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT")
+        return true;
       return target.isContentEditable;
     };
 
@@ -463,12 +456,9 @@ export default function InfomapOnline() {
         : undefined;
 
   useEffect(() => {
-    if (!clusterData.value || !network.value) {
-      setClusterEvaluation({ codeLength: null, numLevels: null });
-      return;
-    }
-
     setClusterEvaluation({ codeLength: null, numLevels: null });
+    if (!clusterData.value || !network.value) return;
+
     let cancelled = false;
     const timeout = window.setTimeout(() => {
       const evaluator = new Infomap()
@@ -516,7 +506,7 @@ export default function InfomapOnline() {
   };
 
   const inputAccept: Record<InputName, string[] | undefined> = {
-    network: undefined, // FIXME
+    network: [".net", ".txt", ".edges", ".graph", ".pajek"],
     "cluster data": params.getParam("--cluster-data").accept,
     "meta data": params.getParam("--meta-data").accept,
   };
@@ -537,7 +527,8 @@ export default function InfomapOnline() {
   const consoleContent = infomapOutput.join("\n");
   const outputFiles = [...physicalFiles, ...stateFiles];
   const runShortcut =
-    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+    typeof navigator !== "undefined" &&
+    /Mac|iPhone|iPad/.test(navigator.platform)
       ? "⌘ + Enter"
       : "Ctrl + Enter";
   const runButton = (

@@ -51,7 +51,7 @@ export function parseInfomapPreviewResult(result: Result): PreviewGraph {
   const flowText = result.flow_as_physical ?? result.flow;
   const isStateNetwork = Boolean(result.json_states);
 
-  if (!json || !json.nodes || json.nodes.length === 0) {
+  if (!json?.nodes || json.nodes.length === 0) {
     return {
       status: "empty",
       message: "Infomap returned no nodes.",
