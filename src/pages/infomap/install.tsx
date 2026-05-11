@@ -57,6 +57,7 @@ const installMethods = [
       ],
       ["Upgrade with the normal Homebrew flow", "brew upgrade infomap"],
     ],
+    links: [["Homebrew tap", "//github.com/mapequation/homebrew-infomap"]],
   },
   {
     id: "DownloadBinary",
@@ -99,6 +100,12 @@ const installMethods = [
     tags: ["Docker", "amd64", "arm64"],
     command:
       'docker run -it --rm -v "$(pwd)":/data ghcr.io/mapequation/infomap:latest [infomap arguments]',
+    links: [
+      [
+        "ghcr.io/mapequation/infomap",
+        "//github.com/mapequation/infomap/pkgs/container/infomap",
+      ],
+    ],
   },
   {
     id: "CompilingFromSource",
@@ -112,6 +119,10 @@ const installMethods = [
     commands: [
       ["Build without OpenMP", "make build-native OPENMP=0"],
       ["Show available CLI options", "./Infomap --help"],
+    ],
+    links: [
+      ["Latest GitHub release", "//github.com/mapequation/infomap/releases/latest"],
+      ["GitHub repository", "//github.com/mapequation/infomap"],
     ],
   },
 ];

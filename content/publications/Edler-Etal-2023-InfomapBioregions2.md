@@ -5,6 +5,8 @@ year: 2023
 date: "2023-06-29"
 journal: "arXiv:2306.17259 (2023)"
 arxiv: "2306.17259"
+links:
+  - { label: "App", href: "https://github.com/mapequation/bioregions" }
 ---
 
 Identifying and understanding the large-scale biodiversity patterns in

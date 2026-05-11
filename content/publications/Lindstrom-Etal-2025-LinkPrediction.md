@@ -7,6 +7,8 @@ journal: "Physical Review E 111, 054314 (2025)"
 doi: "https://doi.org/10.1103/PhysRevE.111.054314"
 arxiv: "2410.08777"
 featured: true
+links:
+  - { label: "Code", href: "https://github.com/mapequation/bayesian-link-prediction" }
 figure:
     caption: "A communication game on a network. The black line illustrates a possible path of a random walk on the network, with colors representing different modules. (a) An example network with 7 nodes and 10 links. Link widths correspond to their weights, shown next to each link. (b) A one-level partition with all nodes grouped into the same module, and seven unique codewords. The sequence of codewords below the network describes the random walk (23 bits). (c) A two-level partition where nodes are divided into two modules with reusable codewords. Arrows show codewords for entering and exiting modules. The random walker’s path can now be communicated more efficiently (22 bits)."
 ---

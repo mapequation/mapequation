@@ -1,4 +1,4 @@
-import { Box, Button, chakra, Stack, Tabs, Text } from "@chakra-ui/react";
+import { Box, Button, chakra, Flex, Stack, Tabs, Text } from "@chakra-ui/react";
 import type { ElementType } from "react";
 import { useState } from "react";
 import { LuCheck, LuCopy } from "react-icons/lu";
@@ -8,17 +8,37 @@ const TabsList = Tabs.List as ElementType;
 const TabsTrigger = Tabs.Trigger as ElementType;
 const TabsContent = Tabs.Content as ElementType;
 
-const installOptions = [
+type InstallOption = {
+  label: string;
+  command: string;
+  note: string;
+  links?: { label: string; href: string }[];
+};
+
+const installOptions: InstallOption[] = [
   {
     label: "Python",
     command: "pip install infomap",
     note: "Python 3.11+ · Windows / macOS / Linux wheels",
+    links: [
+      { label: "PyPI", href: "https://pypi.org/project/infomap/" },
+      {
+        label: "Python API docs",
+        href: "https://mapequation.github.io/infomap-python-docs/",
+      },
+    ],
   },
   {
     label: "R",
     command:
       'install.packages("infomap", repos = c("https://mapequation.r-universe.dev", "https://cloud.r-project.org"))',
     note: "Pre-built R binaries from r-universe",
+    links: [
+      {
+        label: "r-universe",
+        href: "https://mapequation.r-universe.dev/infomap",
+      },
+    ],
   },
   {
     label: "CLI",
@@ -26,21 +46,50 @@ const installOptions = [
     note: "Native CLI with Homebrew",
   },
   {
+    label: "Homebrew",
+    command: "brew install mapequation/infomap/infomap",
+    note: "Native CLI on macOS and Linux",
+    links: [
+      {
+        label: "Homebrew tap",
+        href: "https://github.com/mapequation/homebrew-infomap",
+      },
+    ],
+  },
+  {
     label: "Docker",
     command: "docker run ghcr.io/mapequation/infomap:latest",
     note: "Multi-architecture image from GitHub Container Registry",
+    links: [
+      {
+        label: "ghcr.io/mapequation/infomap",
+        href: "https://github.com/mapequation/infomap/pkgs/container/infomap",
+      },
+    ],
   },
   {
     label: "TypeScript",
     command: "npm install @mapequation/infomap",
     note: "WebAssembly package for browser and Node.js apps",
+    links: [
+      {
+        label: "npm",
+        href: "https://www.npmjs.com/package/@mapequation/infomap",
+      },
+    ],
   },
   {
     label: "Source",
     command: "make build-native",
     note: "Native CLI from source",
+    links: [
+      {
+        label: "Latest GitHub release",
+        href: "https://github.com/mapequation/infomap/releases/latest",
+      },
+    ],
   },
-] as const;
+];
 
 export default function InstallCard() {
   const [copiedTab, setCopiedTab] = useState<string | null>(null);
@@ -123,11 +172,37 @@ export default function InstallCard() {
                 </Button>
               </Box>
 
-              <Box>
+              <Flex
+                justify="space-between"
+                align="center"
+                gap={4}
+                flexWrap="wrap"
+              >
                 <Text color="gray.500" mb={0}>
                   {option.note}
                 </Text>
-              </Box>
+                {option.links && option.links.length > 0 && (
+                  <Flex gap={4} flexWrap="wrap">
+                    {option.links.map((link) => (
+                      <chakra.a
+                        key={link.href}
+                        href={link.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        fontSize="sm"
+                        color="#128bc2"
+                        textDecoration="none"
+                        _hover={{
+                          color: "#096992",
+                          textDecoration: "underline",
+                        }}
+                      >
+                        {link.label} ↗
+                      </chakra.a>
+                    ))}
+                  </Flex>
+                )}
+              </Flex>
             </Stack>
           </TabsContent>
         ))}

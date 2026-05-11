@@ -8,6 +8,8 @@ category: tutorial
 journal: "ACM Computing Surveys 58(7), 1-34 (2026)"
 doi: "https://doi.org/10.1145/3779648"
 arxiv: "2311.04036"
+links:
+  - { label: "Tutorial notebooks", href: "https://github.com/mapequation/infomap-tutorial-notebooks" }
 figure:
     caption: "Modeling and mapping flow with the map equation framework. Given complex system data, the
 researcher first selects an appropriate network representation (left column) based on the type of interactions:
