@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" baseProfile="full" width="300" height="280"><g transform="translate(50,30)"><defs><style type="text/css">
+svg {
+	font-family: Lato,"Lucida Sans Unicode","Lucida Grande",Garuda,sans-serif;
+	font-weight:300;
+	font-size:14px;
+}
+
+.axis path,
+.axis line {
+	fill: none;
+	stroke-width: 1px;
+	stroke: #999;
+	shape-rendering: crispEdges;
+}
+
+.axis text {
+	fill: #666;
+}
+
+.label {
+	fill: #666 !important;
+}
+
+.title {
+	font-size: 1.5em;
+}
+
+.data-line {
+	fill: none;
+	stroke: burlywood;
+	stroke-width: 0.1em;
+}
+
+.data-points {
+	fill: none;
+	stroke: brown;
+	stroke-width: 1px;
+}</style></defs><g class="x axis" transform="translate(0,200)"><g class="tick" style="opacity: 1;" transform="translate(0,0)"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">2</text></g><g class="tick" style="opacity: 1;" transform="translate(33.33333333333333,0)"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">4</text></g><g class="tick" style="opacity: 1;" transform="translate(66.66666666666666,0)"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">6</text></g><g class="tick" style="opacity: 1;" transform="translate(100,0)"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">8</text></g><g class="tick" style="opacity: 1;" transform="translate(133.33333333333331,0)"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">10</text></g><g class="tick" style="opacity: 1;" transform="translate(166.66666666666666,0)"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">12</text></g><g class="tick" style="opacity: 1;" transform="translate(200,0)"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">14</text></g><path class="domain" d="M0,6V0H200V6"></path><text class="label axis-label" x="100" y="1.5em" dy="1em" style="text-anchor: middle;">Levels generated</text></g><g class="y axis"><g class="tick" style="opacity: 1;" transform="translate(0,200)"><line x2="-6" y2="0"></line><text x="-9" y="0" dy=".32em" style="text-anchor: end;">2</text></g><g class="tick" style="opacity: 1;" transform="translate(0,166.66666666666669)"><line x2="-6" y2="0"></line><text x="-9" y="0" dy=".32em" style="text-anchor: end;">4</text></g><g class="tick" style="opacity: 1;" transform="translate(0,133.33333333333334)"><line x2="-6" y2="0"></line><text x="-9" y="0" dy=".32em" style="text-anchor: end;">6</text></g><g class="tick" style="opacity: 1;" transform="translate(0,100)"><line x2="-6" y2="0"></line><text x="-9" y="0" dy=".32em" style="text-anchor: end;">8</text></g><g class="tick" style="opacity: 1;" transform="translate(0,66.66666666666669)"><line x2="-6" y2="0"></line><text x="-9" y="0" dy=".32em" style="text-anchor: end;">10</text></g><g class="tick" style="opacity: 1;" transform="translate(0,33.33333333333334)"><line x2="-6" y2="0"></line><text x="-9" y="0" dy=".32em" style="text-anchor: end;">12</text></g><g class="tick" style="opacity: 1;" transform="translate(0,0)"><line x2="-6" y2="0"></line><text x="-9" y="0" dy=".32em" style="text-anchor: end;">14</text></g><path class="domain" d="M-6,0H0V200H-6"></path><text class="label axis-label" transform="rotate(-90)" x="-100" y="-2em" dy="-0.5em" style="text-anchor: middle;">Levels found</text></g><g class="target infomap_N5"><path class="data-line" d="M0,200L16.666666666666664,183.33333333333334L33.33333333333333,166.66666666666669L50,150L66.66666666666666,133.33333333333334L83.33333333333333,116.66666666666667L100,100L116.66666666666666,83.33333333333334L133.33333333333331,66.66666666666669L150,50L166.66666666666666,33.33333333333334L183.33333333333331,16.666666666666686L200,0" style="stroke: #aec7e8;"></path><g class="data-points"><circle cx="0" cy="200" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="16.666666666666664" cy="183.33333333333334" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="33.33333333333333" cy="166.66666666666669" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="50" cy="150" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="66.66666666666666" cy="133.33333333333334" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="83.33333333333333" cy="116.66666666666667" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="100" cy="100" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="116.66666666666666" cy="83.33333333333334" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="133.33333333333331" cy="66.66666666666669" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="150" cy="50" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="166.66666666666666" cy="33.33333333333334" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="183.33333333333331" cy="16.666666666666686" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><circle cx="200" cy="0" r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle></g></g><g class="target louvain"><path class="data-line" d="M0,200L16.666666666666664,183.33333333333334L33.33333333333333,183.33333333333334L50,166.66666666666669L66.66666666666666,166.66666666666669L83.33333333333333,150L100,133.33333333333334L116.66666666666666,133.33333333333334L133.33333333333331,116.66666666666667L150,116.66666666666667L166.66666666666666,100L183.33333333333331,100L200,83.33333333333334" style="stroke: #ffbb78;"></path><g class="data-points"><circle cx="0" cy="200" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="16.666666666666664" cy="183.33333333333334" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="33.33333333333333" cy="183.33333333333334" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="50" cy="166.66666666666669" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="66.66666666666666" cy="166.66666666666669" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="83.33333333333333" cy="150" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="100" cy="133.33333333333334" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="116.66666666666666" cy="133.33333333333334" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="133.33333333333331" cy="116.66666666666667" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="150" cy="116.66666666666667" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="166.66666666666666" cy="100" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="183.33333333333331" cy="100" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><circle cx="200" cy="83.33333333333334" r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle></g></g><g class="legend" transform="translate(10,10)"><circle r="0.2em" style="fill: #aec7e8; stroke: #1f77b4;"></circle><text x="10" dy=".35em" class="label legend-label" style="text-anchor: start;">Infomap</text></g><g class="legend" transform="translate(10,30)"><circle r="0.2em" style="fill: #ffbb78; stroke: #ff7f0e;"></circle><text x="10" dy=".35em" class="label legend-label" style="text-anchor: start;">Louvain</text></g></g></svg>
