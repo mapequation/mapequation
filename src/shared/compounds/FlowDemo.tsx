@@ -174,7 +174,7 @@ const viewBox = {
 };
 
 const baseWalkerInterval = 400;
-const baseWalkerDuration = 338;
+const _baseWalkerDuration = 338;
 const googleTeleportRate = 0.15;
 const pageRankIterations = 100;
 const minNodeRadius = 15;

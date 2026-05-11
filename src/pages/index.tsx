@@ -11,7 +11,7 @@ import type { GetStaticProps, NextPage } from "next";
 import NextLink from "next/link";
 import FlowDemo from "../shared/compounds/FlowDemo";
 import NewsList from "../shared/compounds/NewsList";
-import { PortalEyebrow, PortalSection } from "../shared/compounds/portal";
+import { PortalSection } from "../shared/compounds/portal";
 import { loadNews, type NewsItem } from "../shared/loadNews";
 
 const PORTAL_CARDS = [
