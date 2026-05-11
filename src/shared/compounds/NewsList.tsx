@@ -14,13 +14,7 @@ export default function NewsList({ items }: { items: NewsItem[] }) {
           direction={{ base: "column", md: "row" }}
           align={{ base: "stretch", md: "flex-start" }}
         >
-          <Flex
-            w={{ md: "7rem" }}
-            flexShrink={0}
-            pt={1}
-            align="center"
-            gap={2}
-          >
+          <Flex w={{ md: "7rem" }} flexShrink={0} pt={1} align="center" gap={2}>
             {n.featured && (
               <Box
                 w="6px"

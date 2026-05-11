@@ -14,12 +14,7 @@ interface Props extends Omit<ComponentProps<typeof chakra.a>, "href"> {
  * never see the raw address. After mount, both are replaced with the real
  * email so a click opens the user's mail client.
  */
-export default function EmailLink({
-  user,
-  domain,
-  children,
-  ...rest
-}: Props) {
+export default function EmailLink({ user, domain, children, ...rest }: Props) {
   const [revealed, setRevealed] = useState(false);
   useEffect(() => {
     setRevealed(true);

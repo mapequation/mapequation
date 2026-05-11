@@ -3,11 +3,7 @@ import path from "node:path";
 import matter from "gray-matter";
 import { marked } from "marked";
 import { z } from "zod";
-import {
-  normalizeDoi,
-  resolveFigure,
-  resolvePdf,
-} from "./publicationAssets";
+import { normalizeDoi, resolveFigure, resolvePdf } from "./publicationAssets";
 
 const publicationSchema = z.object({
   title: z.string(),
@@ -63,9 +59,7 @@ export function loadPublications(): Publication[] {
       ...parsed,
       slug,
       body,
-      bodyHtml: body
-        ? (marked.parse(body, { async: false }) as string)
-        : "",
+      bodyHtml: body ? (marked.parse(body, { async: false }) as string) : "",
       figureSrc: resolveFigure(slug, parsed.figure?.src),
       pdfHref: resolvePdf(slug, parsed.pdf),
       doiHref: parsed.doi ? normalizeDoi(parsed.doi) : undefined,

@@ -33,7 +33,8 @@ const PORTAL_CARDS = [
     href: "/publications",
     title: "Publications",
     description: "Theory, applications, and the canonical references to cite.",
-    image: "/publications/Rosvall-Bergstrom-2008-Maps-of-information-flow/science2004.svg",
+    image:
+      "/publications/Rosvall-Bergstrom-2008-Maps-of-information-flow/science2004.svg",
     imagePosition: "center",
     imageSize: "150%",
   },
@@ -64,9 +65,8 @@ const HomePage: NextPage<Props> = ({ recentNews }) => {
             The Map Equation framework.
           </Heading>
           <Text color="gray.700" fontSize={{ base: "md", md: "lg" }} mb={0}>
-            A coding-theoretic approach to community detection: good
-            communities are the ones that compress the description of a random
-            walk best.
+            A coding-theoretic approach to community detection: good communities
+            are the ones that compress the description of a random walk best.
           </Text>
           <Text color="gray.700" fontSize={{ base: "md", md: "lg" }} mb={0}>
             Since 2008, the framework has grown into Infomap (the reference

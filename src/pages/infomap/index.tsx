@@ -35,9 +35,9 @@ const Home: NextPage = () => {
           </Heading>
           <Text color="gray.700" fontSize={{ base: "md", md: "lg" }} mb={0}>
             Infomap is the reference implementation of the map equation. It
-            finds multilevel communities in directed, weighted, multilayer,
-            and memory networks — fast, well-tested, with first-party Python
-            and R bindings.
+            finds multilevel communities in directed, weighted, multilayer, and
+            memory networks — fast, well-tested, with first-party Python and R
+            bindings.
           </Text>
 
           <Flex gap={3} flexWrap="wrap">
