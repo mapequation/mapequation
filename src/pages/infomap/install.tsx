@@ -121,7 +121,10 @@ const installMethods = [
       ["Show available CLI options", "./Infomap --help"],
     ],
     links: [
-      ["Latest GitHub release", "//github.com/mapequation/infomap/releases/latest"],
+      [
+        "Latest GitHub release",
+        "//github.com/mapequation/infomap/releases/latest",
+      ],
       ["GitHub repository", "//github.com/mapequation/infomap"],
     ],
   },
