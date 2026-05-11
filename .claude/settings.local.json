@@ -1,5 +1,0 @@
-{
-  "permissions": {
-    "allow": ["WebFetch(domain:www.mapequation.org)", "Bash(npx tsc *)"]
-  }
-}
