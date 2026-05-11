@@ -41,11 +41,6 @@ const installOptions: InstallOption[] = [
     ],
   },
   {
-    label: "CLI",
-    command: "brew install mapequation/infomap/infomap",
-    note: "Native CLI with Homebrew",
-  },
-  {
     label: "Homebrew",
     command: "brew install mapequation/infomap/infomap",
     note: "Native CLI on macOS and Linux",

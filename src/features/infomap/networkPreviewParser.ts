@@ -1,5 +1,5 @@
-export const NETWORK_PREVIEW_NODE_LIMIT = 2_000;
-export const NETWORK_PREVIEW_LINK_LIMIT = 5_000;
+export const NETWORK_PREVIEW_NODE_LIMIT = 50_000;
+export const NETWORK_PREVIEW_LINK_LIMIT = 200_000;
 
 export type PreviewNode = {
   id: string;
@@ -11,6 +11,7 @@ export type PreviewLink = {
   source: string;
   target: string;
   weight: number;
+  directed: boolean;
 };
 
 export type ParsedNetwork =
@@ -83,6 +84,7 @@ export function parseNetworkPreview(
   const nodes = new Map<string, PreviewNode>();
   const links: PreviewLink[] = [];
   let mode: ParserMode = "link-list";
+  let linksDirected = false;
 
   const ensureNode = (id: string, label = id) => {
     const existing = nodes.get(id);
@@ -105,7 +107,7 @@ export function parseNetworkPreview(
     const targetNode = ensureNode(target);
     sourceNode.degree += 1;
     targetNode.degree += 1;
-    links.push({ source, target, weight });
+    links.push({ source, target, weight, directed: linksDirected });
   };
 
   try {
@@ -132,6 +134,7 @@ export function parseNetworkPreview(
           directive === "*bipartite"
         ) {
           mode = "edges";
+          linksDirected = directive === "*arcs" || directive === "*links";
           continue;
         }
         mode = "unsupported";

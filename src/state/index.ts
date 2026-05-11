@@ -1,6 +1,6 @@
 import arg from "arg";
 import { create } from "zustand";
-import { twoTriangles } from "../data/networks";
+import { modular_w } from "../data/networks";
 import {
   applyOutputContent,
   downloadAllOutput,
@@ -303,7 +303,7 @@ export const useInfomapStore = create<InfomapState>((set, get) => {
   };
 
   return withDerived({
-    network: { name: "two_triangles", value: twoTriangles },
+    network: { name: "weighted_modular", value: modular_w },
     clusterData: { name: "", value: "" },
     metaData: { name: "", value: "" },
     activeInput: "network",

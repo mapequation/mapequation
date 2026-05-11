@@ -8,12 +8,14 @@ import {
   GridItem,
   Heading,
   HStack,
+  Link as CkLink,
   Stack,
   Text,
   Textarea,
 } from "@chakra-ui/react";
 import Infomap from "@mapequation/infomap";
 import localforage from "localforage";
+import NextLink from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LuCheck,
@@ -78,7 +80,7 @@ function PanelHeader({
   action,
 }: {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   action?: React.ReactNode;
 }) {
   return (
@@ -109,6 +111,7 @@ export default function InfomapOnline() {
   const store = useStore();
   const [infomapOutput, setInfomapOutput] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [isInputLoading, setIsInputLoading] = useState(false);
   const outputBufferRef = useRef<string[]>([]);
   const outputFrameRef = useRef<number | null>(null);
 
@@ -183,7 +186,7 @@ export default function InfomapOnline() {
     if (args) {
       setArgs(args);
     } else {
-      setArgs("--clu --ftree");
+      setArgs("--clu --ftree --num-trials 10");
     }
   }, [store.params.setArgs]);
 
@@ -360,6 +363,18 @@ export default function InfomapOnline() {
   };
 
   const inputValue = inputOptions[activeInput].value;
+  const inputLineCount = inputValue ? inputValue.split("\n").length : 0;
+  const inputPreviewLineLimit = 500;
+  const isLargeInput =
+    inputLineCount > inputPreviewLineLimit || inputValue.length > 200_000;
+  const displayInputValue = isLargeInput
+    ? `${inputValue
+        .split("\n")
+        .slice(0, inputPreviewLineLimit)
+        .join("\n")}\n…\n# ${
+        inputLineCount - inputPreviewLineLimit
+      } more lines hidden — input is read-only above the size threshold`
+    : inputValue;
   const consoleContent = infomapOutput.join("\n");
   const outputFiles = [...physicalFiles, ...stateFiles];
   const runButton = (
@@ -382,7 +397,14 @@ export default function InfomapOnline() {
     <>
       <PanelHeader
         title="Network input"
-        description={`Editing ${activeInput}`}
+        description={
+          <>
+            Editing {activeInput} ·{" "}
+            <CkLink asChild color="blue.600">
+              <NextLink href="/infomap/formats">Formats</NextLink>
+            </CkLink>
+          </>
+        }
         action={
           <ButtonGroup attached size="sm">
             <LoadButton
@@ -427,19 +449,24 @@ export default function InfomapOnline() {
         onDrop={onLoad(activeInput)}
         accept={inputAccept[activeInput]}
         onChange={(event) => onInputChange(activeInput)(event.target)}
-        value={inputValue}
+        value={displayInputValue}
+        readOnly={isLargeInput}
+        disabled={isInputLoading}
         placeholder={`Input ${activeInput} here`}
         spellCheck={false}
         wrap="off"
         overflow="auto"
         resize="none"
-        flex="1 1 22rem"
-        minH={0}
+        flexShrink={0}
+        h="22rem"
         variant="outline"
         bg="gray.50"
         fontSize="sm"
       />
-      <ExampleNetworksList disabled={isRunning} />
+      <ExampleNetworksList
+        disabled={isRunning}
+        onLoadingChange={setIsInputLoading}
+      />
     </>
   );
   const renderParametersPanel = () => (
@@ -474,7 +501,7 @@ export default function InfomapOnline() {
       }}
       templateColumns={{
         base: "minmax(0, 1fr)",
-        xl: "minmax(18rem, 32rem) minmax(28rem, 1fr) minmax(20rem, 34rem)",
+        xl: "minmax(18rem, 22rem) minmax(28rem, 1fr) minmax(20rem, 34rem)",
       }}
       templateRows={{
         base: "minmax(0, 1fr)",
@@ -487,7 +514,8 @@ export default function InfomapOnline() {
         minW={0}
         display={{ base: "none", xl: "flex" }}
         flexDirection="column"
-        overflow="hidden"
+        overflowY="auto"
+        overflowX="hidden"
         bg="white"
         borderWidth="1px"
         borderColor="gray.200"
@@ -591,10 +619,19 @@ export default function InfomapOnline() {
         <Box display={tab === "network" ? "flex" : "none"} flex="1" minH={0}>
           <NetworkPreview
             codeLength={previewCodeLength}
+            directed={Boolean(params.getParam("--directed").active)}
             levelModules={previewLevelModules}
             lockedLevelLabel={previewLevelLabel}
+            loadingState={
+              isRunning
+                ? "running"
+                : isInputLoading
+                  ? "loading"
+                  : null
+            }
             moduleSource={previewModuleSource}
             network={network.value}
+            networkName={network.name}
             modules={previewModules}
             numLevels={previewNumLevels}
             selectedLevel={previewSelectedLevel}

@@ -408,12 +408,6 @@ const ParameterGroup = ({
               <HStack lineHeight={1.35}>
                 <Box asChild fontSize="xs">
                   <label {...getHeaderProps(param)} htmlFor={param.long}>
-                    {param.short && (
-                      <>
-                        <ParamName param={param} short />
-                        {", "}
-                      </>
-                    )}
                     <ParamName param={param} />
                   </label>
                 </Box>
