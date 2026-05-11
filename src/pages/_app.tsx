@@ -11,6 +11,8 @@ import Script from "next/script";
 import SiteLayout from "../shared/compounds/SiteLayout";
 import system from "../theme";
 
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
 declare global {
   interface Window {
     dataLayer?: unknown[];
@@ -26,17 +28,22 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       <Head>
         <title>MapEquation — research, software, and visualizations</title>
       </Head>
-      <Script
-        src="https://www.googletagmanager.com/gtag/js?id=UA-27168379-1"
-        onLoad={() => {
-          window.dataLayer = window.dataLayer || [];
-
-          window.gtag = (...args: unknown[]) => window.dataLayer?.push(args);
-
-          window.gtag("js", new Date());
-          window.gtag("config", "UA-27168379-1");
-        }}
-      />
+      {GA_MEASUREMENT_ID && (
+        <>
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+            strategy="afterInteractive"
+          />
+          <Script id="ga4-init" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GA_MEASUREMENT_ID}');
+            `}
+          </Script>
+        </>
+      )}
 
       <ChakraProvider value={system}>
         <SiteLayout fillViewport={fillViewport}>

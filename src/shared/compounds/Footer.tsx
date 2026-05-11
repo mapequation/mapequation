@@ -110,9 +110,13 @@ export default function Footer() {
           flexWrap="wrap"
           gap={2}
         >
-          <Text mb={0}>© 2008–{new Date().getFullYear()} mapequation.org</Text>
           <Text mb={0}>
-            Contact{" "}
+            © 2008–{new Date().getFullYear()} mapequation.org{" · "}
+            <NextLink href="/about#Terms" passHref>
+              Terms
+            </NextLink>
+          </Text>
+          <Text mb={0}>
             <EmailLink
               user="martin.rosvall"
               domain="umu.se"
