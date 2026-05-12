@@ -3,7 +3,6 @@ title: "Reliable data clustering with Bayesian community detection"
 authors: "Magnus Neuman, Jelena Smiljanić, Martin Rosvall"
 year: 2025
 date: "2025-10-16"
-journal: "arXiv:2510.15013 (2025)"
 arxiv: "2510.15013"
 cites:
   - Rosvall-Bergstrom-2008-Maps-of-information-flow

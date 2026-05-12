@@ -4,7 +4,7 @@ title: "Community Detection with the Map Equation and Infomap: Theory and Applic
 authors: "Jelena Smiljanić, Christopher Blöcker, Anton Holmgren, Daniel Edler, Magnus Neuman, Martin Rosvall"
 year: 2026
 date: "2026-02-03"
-category: tutorial
+category: Tutorial
 journal: "ACM Computing Surveys 58(7), 1-34 (2026)"
 doi: "https://doi.org/10.1145/3779648"
 arxiv: "2311.04036"

@@ -10,39 +10,35 @@ in [src/pages/](src/pages/) and [content/news/](content/news/).
 
 ## Quick reference
 
-A publication is two things:
+A publication is one folder:
 
-- **a markdown file** at [`content/publications/<slug>.md`](content/publications/) — title, authors, journal, abstract.
-- **a folder of assets** at `public/publications/<slug>/` — the PDF and the figure.
+- **`public/publications/<slug>/index.md`** — title, authors, journal, abstract.
+- **the same folder** — optional PDF and figure assets.
 
-The two share the same `<slug>`. Drop the right files in the right places and
-everything else is automatic: the build picks up the first PDF and first image
-in the folder, links them from the publications page, and renders the figure
-next to the abstract.
+The folder name is the publication `<slug>`. Drop `index.md`, the PDF, and the
+figure in that folder and everything else is automatic: the build picks up the
+first PDF and first image in the folder, links them from the publications page,
+and renders the figure next to the abstract.
 
 ```
-content/publications/
-  Lindstrom-Etal-2026-MemoryBiased.md      ← slug = filename without .md
-
 public/publications/
-  Lindstrom-Etal-2026-MemoryBiased/        ← folder name MUST match the slug
+  Lindstrom-Etal-2026-MemoryBiased/        ← slug = folder name
+    index.md
     paper.pdf
     figure.svg
 ```
 
 ## Adding a new publication on GitHub (fastest)
 
-1. **Create the markdown file.** Open
-   [content/publications/](content/publications/) on GitHub →
-   *Add file → Create new file*. Name it `FirstAuthor-Year-ShortTitle.md` (see
+1. **Create the publication folder and manifest.** Open
+   [public/publications/](public/publications/) on GitHub →
+   *Add file → Create new file*. Name it
+   `FirstAuthor-Year-ShortTitle/index.md` (see
    [Slug convention](#slug-convention) below). Paste the
    [typical research paper template](#templates) and fill it in.
-2. **Upload the PDF and figure.** Go to
-   [public/publications/](public/publications/) → *Add file →
-   Upload files*. Drop the PDF and figure on the page. Before committing, edit
-   the path field at the top so it reads `<slug>/` followed by the filename —
-   typing the `/` creates a new folder. The slug must match the markdown
-   filename **exactly**, including capitalization.
+2. **Upload the PDF and figure.** Go to the same folder under
+   [public/publications/](public/publications/) → *Add file → Upload files*.
+   Drop the PDF and figure there.
 3. **Commit.** Either commit straight to `master`, or use *Create a new branch
    and start a pull request* if you'd like a colleague to review first.
 
@@ -62,27 +58,27 @@ npm run dev                    # http://localhost:3000
 
 Then:
 
-1. Create `content/publications/<slug>.md`.
-2. Create `public/publications/<slug>/` and drop the PDF + figure inside.
+1. Create `public/publications/<slug>/index.md`.
+2. Drop the PDF + figure into `public/publications/<slug>/`.
 3. Refresh `/publications` in the browser to verify it renders.
 4. `npm run check` (Biome lint + format check + `tsc`).
-5. `git add content/publications/<slug>.md public/publications/<slug> && git commit -m "Add <slug>" && git push`.
+5. `git add public/publications/<slug> && git commit -m "Add <slug>" && git push`.
 
 ## Slug convention
 
-`FirstAuthor-Year-ShortTitle.md`
+`FirstAuthor-Year-ShortTitle`
 
 - One or two surnames separated by `-`. For three or more authors, use `Etal`:
   `Aslak-Etal-2017-...`, `Rosvall-Bergstrom-2008-...`,
   `Rosvall-Axelsson-Bergstrom-2009-...`.
 - 4-digit year.
 - Title in CamelCase or hyphen-separated words. Keep it short, ASCII only.
-- The asset folder under `public/publications/` must use the **same
-  slug** (case-sensitive — the deploy host treats `Foo-2024-...` and
+- The folder under `public/publications/` is the **slug** (case-sensitive —
+  the deploy host treats `Foo-2024-...` and
   `foo-2024-...` as different folders).
 
 Look at any existing entry in
-[content/publications/](content/publications/) for examples.
+[public/publications/](public/publications/) for examples.
 
 ## Frontmatter reference
 
@@ -95,8 +91,8 @@ Look at any existing entry in
 | `journal` | string | no | Journal/venue line, e.g. `"Phys. Rev. E 100, 052308 (2019)"`. |
 | `doi` | URL | no | Full DOI URL, e.g. `"https://doi.org/10.1103/PhysRevE.100.052308"`. |
 | `arxiv` | string | no | arXiv ID only (e.g. `"1905.11230"`). The link is generated automatically. |
-| `pdf` | string | no | Filename inside the asset folder (`"paper.pdf"`), or a full external URL. **Omit to auto-pick the first PDF in the asset folder.** |
-| `figure.src` | string | no | Filename inside the asset folder (`"figure.svg"`), or a full external URL. **Omit to auto-pick the first image in the asset folder.** |
+| `pdf` | string | no | Filename inside the publication folder (`"paper.pdf"`), or a full external URL. **Omit to auto-pick the first PDF in the folder.** |
+| `figure.src` | string | no | Filename inside the publication folder (`"figure.svg"`), or a full external URL. **Omit to auto-pick the first image in the folder.** |
 | `figure.caption` | string | no | Caption shown under the figure; also used as alt text. Convention: start with `FIG. N`. |
 | `links` | array | no | Custom external links; each `{ label, href }`. |
 | `category` | enum | no | `research` (default), `tutorial`, or `presentation`. Each gets its own section in the table of contents. |
@@ -107,7 +103,7 @@ the abstract, beside the figure. Plain prose, 50–500 words, no headings.
 
 ## Templates
 
-Copy the relevant block, paste it into your new `<slug>.md`, fill in the
+Copy the relevant block, paste it into your new `<slug>/index.md`, fill in the
 fields, and write the abstract under the closing `---`.
 
 ### Minimal — only the required fields
@@ -193,10 +189,10 @@ Abstract goes here.
 
 ## Pre-flight checklist
 
-- [ ] Filename is `FirstAuthor-Year-ShortTitle.md`.
+- [ ] Folder is `public/publications/FirstAuthor-Year-ShortTitle/`.
+- [ ] Manifest is `public/publications/FirstAuthor-Year-ShortTitle/index.md`.
 - [ ] Required fields (`title`, `authors`, `year`) are filled in.
-- [ ] Asset folder under `public/publications/` uses the **same slug**.
-- [ ] PDF and figure are inside the asset folder, or appropriate URL field is set.
+- [ ] PDF and figure are inside the publication folder, or appropriate URL field is set.
 - [ ] If multiple PDFs / images live in the folder, the right one is pinned with `pdf:` / `figure.src:`.
 - [ ] (Local) `npm run dev` shows the new entry rendering correctly.
 - [ ] (Local) `npm run check` is clean (Biome + `tsc`).
@@ -205,9 +201,8 @@ Abstract goes here.
 
 | Path | Purpose |
 | --- | --- |
-| [content/publications/](content/publications/) | Publication markdown files. |
 | [src/shared/loadPublications.ts](src/shared/loadPublications.ts) | Frontmatter schema (Zod) + loader. |
-| [public/publications/](public/publications/) | Per-slug asset folders (PDFs + figures). |
+| [public/publications/](public/publications/) | Per-slug publication folders (`index.md`, PDFs, figures). |
 | [src/shared/publicationAssets.ts](src/shared/publicationAssets.ts) | PDF / figure auto-discovery helper. |
 | [src/pages/publications.tsx](src/pages/publications.tsx) | The publications page. |
 | [src/pages/index.tsx](src/pages/index.tsx) | Home page (pulls recent items from [content/news/](content/news/) via [src/shared/loadNews.ts](src/shared/loadNews.ts)). |

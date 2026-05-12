@@ -131,7 +131,7 @@ const PublicationsAccordion = ({
               {formatPubDate(p)}
             </Text>
             <Box w={{ md: "7rem" }} flexShrink={0}>
-              <Tag>{p.isPreprint ? "Preprint" : "Publication"}</Tag>
+              <Tag>{p.category}</Tag>
             </Box>
           </Flex>
           <Box flex="1" minW={0} w={{ base: "100%", md: "auto" }}>

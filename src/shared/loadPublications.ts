@@ -28,8 +28,8 @@ const publicationSchema = z.object({
     })
     .optional(),
   category: z
-    .enum(["research", "presentation", "tutorial"])
-    .default("research"),
+    .enum(["Publication", "Tutorial", "Preprint", "Book chapter"])
+    .default("Publication"),
   featured: z.boolean().optional(),
 });
 
@@ -41,21 +41,33 @@ export type Publication = z.infer<typeof publicationSchema> & {
   pdfHref?: string;
   doiHref?: string;
   scholarHref: string;
-  isPreprint: boolean;
 };
 
-const CONTENT_DIR = path.join(process.cwd(), "content", "publications");
+const PUBLICATIONS_DIR = path.join(process.cwd(), "public", "publications");
 
 export function loadPublications(): Publication[] {
-  const files = readdirSync(CONTENT_DIR).filter((f) => f.endsWith(".md"));
-  const pubs: Publication[] = files.map((file) => {
-    const raw = readFileSync(path.join(CONTENT_DIR, file), "utf8");
+  const entries = readdirSync(PUBLICATIONS_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const pubs: Publication[] = entries.map((entry) => {
+    const slug = entry.name;
+    const raw = readFileSync(
+      path.join(PUBLICATIONS_DIR, slug, "index.md"),
+      "utf8",
+    );
     const { data, content } = matter(raw);
-    const parsed = publicationSchema.parse(data);
-    const slug = file.replace(/\.md$/, "");
+    let parsed: z.infer<typeof publicationSchema>;
+    try {
+      parsed = publicationSchema.parse(data);
+    } catch (err) {
+      console.error(`Error parsing publication ${slug}:`, err);
+      return {} as Publication;
+    }
+    
     const body = content.trim();
-    const isPreprint =
-      (parsed.journal ?? "").toLowerCase().includes("arxiv") && !parsed.doi;
+    if (!parsed.doi) {
+      parsed.category = "Preprint"
+    }
     return {
       ...parsed,
       slug,
@@ -65,7 +77,6 @@ export function loadPublications(): Publication[] {
       pdfHref: resolvePdf(slug, parsed.pdf),
       doiHref: parsed.doi ? normalizeDoi(parsed.doi) : undefined,
       scholarHref: `https://scholar.google.com/scholar?q=${encodeURIComponent(parsed.title)}`,
-      isPreprint,
     };
   });
   pubs.sort((a, b) => {

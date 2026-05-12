@@ -10,7 +10,7 @@ cites:
   - Rosvall-Axelsson-Bergstrom-2009-Map-equation
   - Lambiotte-Rosvall-2012-Smart-teleportation
 links:
-  - { label: "data", href: "https://bitbucket.org/mapequation/memory-network-data/wiki/Home" }
+  - { label: "Data", href: "https://bitbucket.org/mapequation/memory-network-data/wiki/Home" }
 figure:
   caption: "FIG. 1 First-order Markov dynamics distort real constraints on flow. (a) In a first-order Markov approach, we model passengers’ travel to a city to be proportional to the observed volume of traffic to that city, and irrespective of where the passengers come from. (b) In a second-order Markov model, passengers’ travel to a city is still proportional to the traffic volume, but also dependent on where the passengers come from. In this example, out-and-back traffic to Chicago only dominates overtransfer traffic when second-order Markov dynamics are taken into account. (c,d) Journal citation flow shows the same memory effect. Citation flow from four different journals to PNAS is mostly shown to return to the same journal or continue to a related journal only when second-order Markov dynamics are taken into account. The percentages represent the relative return flow."
 ---

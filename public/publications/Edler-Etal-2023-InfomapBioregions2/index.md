@@ -3,7 +3,6 @@ title: "Infomap Bioregions 2 — Exploring the interplay between biogeography an
 authors: "Daniel Edler, Anton Holmgren, Alexis Rojas, Joaquín Calatayud, Martin Rosvall, Alexandre Antonelli"
 year: 2023
 date: "2023-06-29"
-journal: "arXiv:2306.17259 (2023)"
 arxiv: "2306.17259"
 links:
   - { label: "App", href: "https://github.com/mapequation/bioregions" }

@@ -2,6 +2,7 @@
 title: "Community detection and visualization of networks with the map equation framework"
 authors: "Ludvig Bohlin, Daniel Edler, Andrea Lancichinetti, Martin Rosvall"
 year: 2014
+category: Tutorial
 journal: "Measuring Scholarly Impact (Springer, 2014), Chapter 1"
 doi: "https://doi.org/10.1007/978-3-319-10377-8_1"
 cites:
@@ -13,7 +14,6 @@ cites:
   - Lambiotte-Rosvall-2012-Smart-teleportation
   - Rosvall-Etal-2014-Memory
   - Kawamoto-Etal-2015-Resolutionlimit
-category: tutorial
 ---
 
 Large networks contain plentiful information about the organization of a system.

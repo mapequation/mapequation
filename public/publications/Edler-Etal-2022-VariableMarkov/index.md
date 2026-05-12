@@ -3,7 +3,6 @@ title: "Variable Markov dynamics as a multi-focal lens to map multi-scale comple
 authors: "Daniel Edler, Jelena Smiljanić, Anton Holmgren, Alexandre Antonelli, Martin Rosvall"
 year: 2022
 date: "2022-11-08"
-journal: "arXiv:2211.04287 (2022)"
 arxiv: "2211.04287"
 ---
 

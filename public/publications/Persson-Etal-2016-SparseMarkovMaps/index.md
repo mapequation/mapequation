@@ -2,7 +2,6 @@
 title: "Maps of sparse Markov chains efficiently reveal community structure in network flows with memory"
 authors: "Christian Persson, Ludvig Bohlin, Daniel Edler, and Martin Rosvall"
 year: 2016
-journal: "pdf"
 arxiv: "1606.08328"
 cites:
   - Rosvall-Bergstrom-2008-Maps-of-information-flow
