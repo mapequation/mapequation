@@ -5,6 +5,8 @@ import {
   forceLink,
   forceManyBody,
   forceSimulation,
+  type Force,
+  type ForceLink,
   type Simulation,
   type SimulationLinkDatum,
   type SimulationNodeDatum,
@@ -137,17 +139,172 @@ function nodeModuleSlices(
   return [];
 }
 
+function layoutModuleForNode(
+  node: { id: string; path?: number[] },
+  modules: Map<number, ModuleId>,
+  moduleFlows?: Map<number, { module: number; flow: number }[]>,
+  levelModules?: Map<number, ModuleMap>,
+): ModuleId | undefined {
+  const pathModuleId = finestPathModuleId(node.path);
+  const flows = moduleFlows?.get(Number(node.id));
+  if (flows && countPositiveModuleFlows(flows) > 1) {
+    return nodeModuleSlices(node, modules, moduleFlows)[0]?.moduleId;
+  }
+  if (pathModuleId !== undefined) return pathModuleId;
+  const finestLevelModuleId = finestLevelModuleForNode(node, levelModules);
+  if (finestLevelModuleId !== undefined) return finestLevelModuleId;
+  return nodeModuleSlices(node, modules, moduleFlows)[0]?.moduleId;
+}
+
+function finestPathModuleId(path: number[] | undefined): ModuleId | undefined {
+  if (!path || path.length < 2) return undefined;
+  return path.slice(0, -1).join(":");
+}
+
+function finestLevelModuleForNode(
+  node: { id: string },
+  levelModules?: Map<number, ModuleMap>,
+): ModuleId | undefined {
+  if (!levelModules) return undefined;
+  const nodeId = Number(node.id);
+  const path: ModuleId[] = [];
+  const levels = [...levelModules.keys()].sort((a, b) => a - b);
+  for (const level of levels) {
+    const moduleId = levelModules.get(level)?.get(nodeId);
+    if (moduleId !== undefined) path.push(moduleId);
+  }
+  return path.length > 0 ? path.join(":") : undefined;
+}
+
+function countPositiveModuleFlows(
+  flows: { module: number; flow: number }[],
+) {
+  let count = 0;
+  for (const flow of flows) {
+    if (flow.flow > 0) count += 1;
+  }
+  return count;
+}
+
+function buildLayoutModulesByNode(
+  graph: Graph,
+  modules: Map<number, ModuleId>,
+  moduleFlows?: Map<number, { module: number; flow: number }[]>,
+  levelModules?: Map<number, ModuleMap>,
+) {
+  const result = new Map<string, ModuleId>();
+  for (const node of graph.nodes) {
+    const moduleId = layoutModuleForNode(
+      node,
+      modules,
+      moduleFlows,
+      levelModules,
+    );
+    if (moduleId !== undefined) result.set(node.id, moduleId);
+  }
+  return result;
+}
+
+function layoutModulesSignature(
+  graph: Graph,
+  modulesByNode: Map<string, ModuleId>,
+) {
+  return graph.nodes
+    .map((node) => `${node.id}:${String(modulesByNode.get(node.id) ?? "")}`)
+    .join("|");
+}
+
+function createModuleAttractionForce(
+  modulesByNode: Map<string, ModuleId>,
+  strength: number,
+): Force<SimNode, SimLink> {
+  let nodes: SimNode[] = [];
+
+  const force = (alpha: number) => {
+    if (modulesByNode.size === 0 || strength <= 0) return;
+
+    const centroids = new Map<
+      ModuleId,
+      { x: number; y: number; weight: number }
+    >();
+    for (const node of nodes) {
+      const moduleId = modulesByNode.get(node.id);
+      if (moduleId === undefined) continue;
+      const x = node.x ?? 0;
+      const y = node.y ?? 0;
+      const weight = Math.max(0.25, node.flow);
+      const centroid = centroids.get(moduleId) ?? { x: 0, y: 0, weight: 0 };
+      centroid.x += x * weight;
+      centroid.y += y * weight;
+      centroid.weight += weight;
+      centroids.set(moduleId, centroid);
+    }
+
+    for (const centroid of centroids.values()) {
+      if (centroid.weight <= 0) continue;
+      centroid.x /= centroid.weight;
+      centroid.y /= centroid.weight;
+    }
+
+    const pull = strength * alpha;
+    for (const node of nodes) {
+      const moduleId = modulesByNode.get(node.id);
+      if (moduleId === undefined) continue;
+      const centroid = centroids.get(moduleId);
+      if (!centroid || centroid.weight <= 0) continue;
+      node.vx = (node.vx ?? 0) + (centroid.x - (node.x ?? 0)) * pull;
+      node.vy = (node.vy ?? 0) + (centroid.y - (node.y ?? 0)) * pull;
+    }
+  };
+
+  force.initialize = (nextNodes: SimNode[]) => {
+    nodes = nextNodes;
+  };
+
+  return force;
+}
+
+function getLinkLayoutKind(
+  link: SimLink,
+  modulesByNode: Map<string, ModuleId>,
+): LinkLayoutKind {
+  const sourceModule = modulesByNode.get(link.source.id);
+  const targetModule = modulesByNode.get(link.target.id);
+  if (sourceModule === undefined || targetModule === undefined) return "neutral";
+  return sourceModule === targetModule ? "intra" : "inter";
+}
+
+function linkDistance(
+  link: SimLink,
+  { distanceRange, linkScale, modular, modulesByNode }: LinkLayoutConfig,
+) {
+  const scale = linkScale(link.weight);
+  const baseDistance =
+    distanceRange[0] + (distanceRange[1] - distanceRange[0]) * scale;
+  if (!modular) return baseDistance;
+  const kind = getLinkLayoutKind(link, modulesByNode);
+  return baseDistance * modularLinkDistanceMultiplier[kind];
+}
+
+function linkStrength(
+  link: SimLink,
+  index: number,
+  links: SimLink[],
+  { baseStrength, linkScale, modular, modulesByNode }: LinkStrengthConfig,
+) {
+  const weightFactor = 0.5 + (1 - 0.5) * linkScale(link.weight);
+  const modularFactor = modular
+    ? modularLinkStrengthMultiplier[getLinkLayoutKind(link, modulesByNode)]
+    : 1;
+  return baseStrength(link, index, links) * weightFactor * modularFactor;
+}
+
 function hasOverlappingModuleFlows(
   moduleFlows?: Map<number, { module: number; flow: number }[]>,
 ) {
   if (!moduleFlows) return false;
   for (const flows of moduleFlows.values()) {
-    let positiveFlowCount = 0;
-    for (const flow of flows) {
-      if (flow.flow <= 0) continue;
-      positiveFlowCount += 1;
-      if (positiveFlowCount > 1) return true;
-    }
+    if (countPositiveModuleFlows(flows) > 1) return true;
   }
   return false;
 }
@@ -165,6 +322,19 @@ type HoverState = {
 
 type ModuleColorResolver = (moduleId: ModuleId) => string;
 
+type LinkLayoutKind = "intra" | "inter" | "neutral";
+
+type LinkLayoutConfig = {
+  distanceRange: readonly [number, number];
+  linkScale: (weight: number) => number;
+  modular: boolean;
+  modulesByNode: Map<string, ModuleId>;
+};
+
+type LinkStrengthConfig = LinkLayoutConfig & {
+  baseStrength: (link: SimLink, index: number, links: SimLink[]) => number;
+};
+
 const neutralNode = "#D7D9DD";
 const unknownNode = "#CBD0D6";
 const linkColor = "#55565A";
@@ -176,6 +346,26 @@ const radiusBase = 8;
 const linkWidthBase = 2;
 const minRenderedLinkPixels = 0.05;
 const minRenderedNodeRadiusPixels = 0.12;
+
+const moduleAttractionStrength = {
+  regular: 0.035,
+  large: 0.018,
+} as const;
+
+const dragSimulationAlpha = 0.7;
+const dragSimulationAlphaTarget = 0.32;
+
+const modularLinkDistanceMultiplier = {
+  intra: 0.75,
+  inter: 1.2,
+  neutral: 1,
+} as const;
+
+const modularLinkStrengthMultiplier = {
+  intra: 1.15,
+  inter: 0.75,
+  neutral: 1,
+} as const;
 
 function createGraph(parsed: Extract<PreviewGraph, { status: "ok" }>): Graph {
   const nodeCount = parsed.nodes.length;
@@ -583,6 +773,14 @@ function NetworkPreviewImpl({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<Graph | null>(null);
   const simulationRef = useRef<Simulation<SimNode, SimLink> | null>(null);
+  const linkForceRef = useRef<ForceLink<SimNode, SimLink> | null>(null);
+  const baseLinkStrengthRef = useRef<
+    ((link: SimLink, index: number, links: SimLink[]) => number) | null
+  >(null);
+  const linkDistanceRangeRef = useRef<readonly [number, number]>([30, 12]);
+  const linkScaleRef = useRef<(weight: number) => number>(() => 1);
+  const layoutModulesByNodeRef = useRef<Map<string, ModuleId>>(new Map());
+  const layoutModulesSignatureRef = useRef("");
   const transformRef = useRef<ZoomTransform>(zoomIdentity);
   const dimensionsRef = useRef({ width: 0, height: 0, dpr: 1 });
   const frameRef = useRef(0);
@@ -685,6 +883,67 @@ function NetworkPreviewImpl({
     clearModuleColorCaches();
   };
 
+  const refreshModularLayoutForces = (restart = false) => {
+    const graph = graphRef.current;
+    const simulation = simulationRef.current;
+    const linkForce = linkForceRef.current;
+    const baseStrength = baseLinkStrengthRef.current;
+    if (!graph || !simulation || !linkForce || !baseStrength) return;
+
+    const modular = coloredByModulesRef.current;
+    const modulesByNode = modular
+      ? buildLayoutModulesByNode(
+          graph,
+          modulesRef.current,
+          moduleFlowsRef.current,
+          levelModulesRef.current,
+        )
+      : new Map<string, ModuleId>();
+    const previousSignature = layoutModulesSignatureRef.current;
+    const nextSignature = modular ? layoutModulesSignature(graph, modulesByNode) : "";
+    const layoutChanged = previousSignature !== nextSignature;
+    if (!layoutChanged) {
+      if (restart) simulation.stop();
+      return;
+    }
+    layoutModulesSignatureRef.current = nextSignature;
+    layoutModulesByNodeRef.current = modulesByNode;
+
+    linkForce
+      .distance((link) =>
+        linkDistance(link, {
+          distanceRange: linkDistanceRangeRef.current,
+          linkScale: linkScaleRef.current,
+          modular,
+          modulesByNode,
+        }),
+      )
+      .strength((link, index, links) =>
+        linkStrength(link, index, links, {
+          baseStrength,
+          distanceRange: linkDistanceRangeRef.current,
+          linkScale: linkScaleRef.current,
+          modular,
+          modulesByNode,
+        }),
+      );
+
+    const strength =
+      graph.nodes.length > 300
+        ? moduleAttractionStrength.large
+        : moduleAttractionStrength.regular;
+    simulation.force(
+      "module",
+      modular && modulesByNode.size > 0
+        ? createModuleAttractionForce(modulesByNode, strength)
+        : null,
+    );
+
+    if (restart && layoutChanged && modular && graph.nodes.length <= 1500) {
+      simulation.alpha(Math.max(simulation.alpha(), 0.3)).restart();
+    }
+  };
+
   const rebuildQuadtree = () => {
     const graph = graphRef.current;
     if (!graph) {
@@ -758,6 +1017,8 @@ function NetworkPreviewImpl({
   const moduleFlowsRef = useRef<typeof moduleFlows>(undefined);
   levelModulesRef.current = levelModules;
   activeLevelRef.current = activeLevel ?? 1;
+  modulesRef.current = activeModules;
+  coloredByModulesRef.current = coloredByModules;
   moduleFlowsRef.current = usePieFlows ? moduleFlows : undefined;
 
   const moduleLabel = useMemo(() => {
@@ -1488,6 +1749,10 @@ function NetworkPreviewImpl({
   useEffect(() => {
     simulationRef.current?.stop();
     simulationRef.current = null;
+    linkForceRef.current = null;
+    baseLinkStrengthRef.current = null;
+    layoutModulesByNodeRef.current = new Map();
+    layoutModulesSignatureRef.current = "";
     graphRef.current = null;
     quadtreeRef.current = null;
     clearModuleColorCaches();
@@ -1511,28 +1776,37 @@ function NetworkPreviewImpl({
     const wMin = weights.length ? Math.min(...weights) : 1;
     const wMax = weights.length ? Math.max(...weights) : 1;
     const wRange = wMax - wMin || 1;
-    const lerp = (t: number, a: number, b: number) => a + (b - a) * t;
     const linkScale = (weight: number) => (weight - wMin) / wRange;
     const compactGraph = graph.nodes.length > 300;
     const linkDistanceRange = compactGraph
       ? ([24, 8] as const)
       : ([30, 12] as const);
+    linkDistanceRangeRef.current = linkDistanceRange;
     const chargeStrength = compactGraph ? -30 : -55;
     const collideMultiplier = compactGraph ? 1.45 : 1.8;
+    linkScaleRef.current = linkScale;
     const linkForce = forceLink<SimNode, SimLink>(graph.links)
       .id((node) => node.id)
       .distance((link) =>
-        lerp(
-          linkScale(link.weight),
-          linkDistanceRange[0],
-          linkDistanceRange[1],
-        ),
+        linkDistance(link, {
+          distanceRange: linkDistanceRange,
+          linkScale,
+          modular: false,
+          modulesByNode: layoutModulesByNodeRef.current,
+        }),
       );
     const baseStrength = linkForce.strength();
+    baseLinkStrengthRef.current = baseStrength;
     linkForce.strength((link, index, links) => {
-      const factor = lerp(linkScale(link.weight), 0.5, 1);
-      return baseStrength(link, index, links) * factor;
+      return linkStrength(link, index, links, {
+        baseStrength,
+        distanceRange: linkDistanceRange,
+        linkScale,
+        modular: false,
+        modulesByNode: layoutModulesByNodeRef.current,
+      });
     });
+    linkForceRef.current = linkForce;
     const simulation = forceSimulation<SimNode, SimLink>(graph.nodes)
       .force("link", linkForce)
       .force("charge", forceManyBody().strength(chargeStrength))
@@ -1559,6 +1833,7 @@ function NetworkPreviewImpl({
 
     const finishInitialLayout = () => {
       simulation.alphaDecay(baseAlphaDecay);
+      refreshModularLayoutForces(false);
       rebuildQuadtree();
       fitToGraph();
       setInitialLayoutReadyKey(parsedKey);
@@ -1620,6 +1895,9 @@ function NetworkPreviewImpl({
       rebuildNodeHierarchyPaths();
       if (graph) {
         for (const link of graph.links) link.sharedModule = undefined;
+        if (initialLayoutReadyKey === parsedKey) {
+          refreshModularLayoutForces(false);
+        }
         requestDraw();
       }
       return;
@@ -1640,11 +1918,15 @@ function NetworkPreviewImpl({
       moduleColorModelRef.current = { colorByModule: new Map() };
     }
     rebuildNodeHierarchyPaths();
+    if (initialLayoutReadyKey === parsedKey) {
+      refreshModularLayoutForces(true);
+    }
     requestDraw();
   }, [
     activeLevel,
     activeModules,
     coloredByModules,
+    initialLayoutReadyKey,
     levelModules,
     moduleFlows,
     parsedKey,
@@ -1669,7 +1951,10 @@ function NetworkPreviewImpl({
       dragged.fy = point.y;
       dragged.vx = 0;
       dragged.vy = 0;
-      simulationRef.current?.alpha(0.45).alphaTarget(0.18).restart();
+      simulationRef.current
+        ?.alpha(dragSimulationAlpha)
+        .alphaTarget(dragSimulationAlphaTarget)
+        .restart();
       requestDraw();
       return;
     }
@@ -1689,7 +1974,10 @@ function NetworkPreviewImpl({
     node.vy = 0;
     draggingRef.current = node;
     event.currentTarget.setPointerCapture(event.pointerId);
-    simulationRef.current?.alpha(0.45).alphaTarget(0.18).restart();
+    simulationRef.current
+      ?.alpha(dragSimulationAlpha)
+      .alphaTarget(dragSimulationAlphaTarget)
+      .restart();
     requestDraw();
   };
 

@@ -524,6 +524,7 @@ export default function InfomapOnline() {
         inputLineCount - inputPreviewLineLimit
       } more lines hidden — input is read-only above the size threshold`
     : inputValue;
+  const hasActiveInputValue = Boolean(inputOptions[activeInput].value);
   const consoleContent = infomapOutput.join("\n");
   const outputFiles = [...physicalFiles, ...stateFiles];
   const runShortcut =
@@ -572,33 +573,33 @@ export default function InfomapOnline() {
         }
       />
 
-      <ButtonGroup
-        attached
-        variant="outline"
-        size="sm"
-        flexShrink={0}
-        mb={1}
-        overflowX="auto"
-        maxW="100%"
-      >
-        {inputTabs.map(({ key, label }) => {
-          const hasInput = Boolean(inputOptions[key].value);
-          const isActive = activeInput === key;
+      <HStack flexShrink={0} mb={1} gap={1} align="center" maxW="100%">
+        <ButtonGroup
+          attached
+          variant="outline"
+          size="sm"
+          overflowX="auto"
+          maxW="100%"
+        >
+          {inputTabs.map(({ key, label }) => {
+            const hasInput = Boolean(inputOptions[key].value);
+            const isActive = activeInput === key;
 
-          return (
-            <Button
-              key={key}
-              type="button"
-              onClick={() => store.setActiveInput(key)}
-              disabled={isActive}
-              bg={isActive ? "gray.100" : undefined}
-            >
-              {hasInput && <LuCheck />}
-              {label}
-            </Button>
-          );
-        })}
-      </ButtonGroup>
+            return (
+              <Button
+                key={key}
+                type="button"
+                onClick={() => store.setActiveInput(key)}
+                disabled={isActive}
+                bg={isActive ? "gray.100" : undefined}
+              >
+                {hasInput && <LuCheck />}
+                {label}
+              </Button>
+            );
+          })}
+        </ButtonGroup>
+      </HStack>
 
       <InputTextarea
         onDrop={onLoad(activeInput)}
@@ -618,6 +619,19 @@ export default function InfomapOnline() {
         bg="gray.50"
         fontSize="sm"
       />
+      <Button
+        alignSelf="flex-start"
+        disabled={!hasActiveInputValue || isInputLoading}
+        flexShrink={0}
+        mt={1}
+        onClick={() => onInputChange(activeInput)({ name: "", value: "" })}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        <LuX />
+        Clear
+      </Button>
       <ExampleNetworksList
         disabled={isRunning}
         onLoadingChange={setIsInputLoading}
