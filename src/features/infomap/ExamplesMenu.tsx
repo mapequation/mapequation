@@ -43,6 +43,12 @@ const categories: { label: string; networks: ExampleNetwork[] }[] = [
         args: undirected,
       },
       {
+        name: "directedRingOfTriangles",
+        label: "Cycle of triangles",
+        value: networks.directedRingOfTriangles,
+        args: directed,
+      },
+      {
         name: "hubAndSpokes",
         label: "Hub and spokes",
         value: networks.hubAndSpokes,
@@ -61,16 +67,22 @@ const categories: { label: string; networks: ExampleNetwork[] }[] = [
         args: directed,
       },
       {
-        name: "fourflowDir",
-        label: "Four-node flow",
-        value: networks.fourflowDir,
-        args: directed,
-      },
-      {
         name: "fournoflowDir",
         label: "Four-node no flow",
         value: networks.fournoflowDir,
         args: directed,
+      },
+      {
+        name: "sourceSinkD",
+        label: "Source / sink",
+        value: networks.sourceSinkD,
+        args: directed,
+      },
+      {
+        name: "weakBridges",
+        label: "Weak bridges",
+        value: networks.weakBridges,
+        args: undirected,
       },
     ],
   },
@@ -90,14 +102,8 @@ const categories: { label: string; networks: ExampleNetwork[] }[] = [
     networks: [
       {
         name: "modular_w",
-        label: "Weighted modular",
+        label: "Weighted",
         value: networks.modular_w,
-        args: undirected,
-      },
-      {
-        name: "weakBridges",
-        label: "Weak bridges",
-        value: networks.weakBridges,
         args: undirected,
       },
       {
@@ -113,20 +119,8 @@ const categories: { label: string; networks: ExampleNetwork[] }[] = [
     networks: [
       {
         name: "modular_wd",
-        label: "Weighted directed",
+        label: "Weighted (directed)",
         value: networks.modular_wd,
-        args: directed,
-      },
-      {
-        name: "directedRingOfTriangles",
-        label: "Cycle of triangles",
-        value: networks.directedRingOfTriangles,
-        args: directed,
-      },
-      {
-        name: "sourceSinkD",
-        label: "Source / sink",
-        value: networks.sourceSinkD,
         args: directed,
       },
       {
@@ -134,41 +128,6 @@ const categories: { label: string; networks: ExampleNetwork[] }[] = [
         label: "Article (directed)",
         value: networks.articleWd,
         args: directed,
-      },
-    ],
-  },
-  {
-    label: "Real-world",
-    networks: [
-      {
-        name: "karate",
-        label: "Karate club",
-        value: networks.karate,
-        args: undirected,
-      },
-      {
-        name: "karateW",
-        label: "Karate (weighted)",
-        value: networks.karateW,
-        args: undirected,
-      },
-      {
-        name: "florentineFamilies",
-        label: "Florentine families",
-        value: networks.florentineFamilies,
-        args: undirected,
-      },
-      {
-        name: "article",
-        label: "Article",
-        value: networks.article,
-        args: undirected,
-      },
-      {
-        name: "netscicoauthor2010",
-        label: "Network science 2010",
-        url: "/assets/networks/netscicoauthor2010.net",
-        args: { "--directed": false, "--two-level": false },
       },
     ],
   },
@@ -214,6 +173,41 @@ const categories: { label: string; networks: ExampleNetwork[] }[] = [
         label: "State network",
         value: networks.states,
         args: undirected,
+      },
+    ],
+  },
+  {
+    label: "Real-world",
+    networks: [
+      {
+        name: "karate",
+        label: "Karate club",
+        value: networks.karate,
+        args: undirected,
+      },
+      {
+        name: "karateW",
+        label: "Karate (weighted)",
+        value: networks.karateW,
+        args: undirected,
+      },
+      {
+        name: "florentineFamilies",
+        label: "Florentine families",
+        value: networks.florentineFamilies,
+        args: undirected,
+      },
+      {
+        name: "collaboration",
+        label: "Paper collaborations",
+        value: networks.collaboration,
+        args: undirected,
+      },
+      {
+        name: "netscicoauthor2010",
+        label: "Network science 2010",
+        url: "/assets/networks/netscicoauthor2010.net",
+        args: { "--directed": false, "--two-level": false },
       },
     ],
   },
