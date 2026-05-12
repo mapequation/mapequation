@@ -550,7 +550,15 @@ export default function InfomapOnline() {
     </Button>
   );
   const renderInputPanel = () => (
-    <>
+    <Box
+      display="flex"
+      flex="1"
+      flexDirection="column"
+      minH={0}
+      overflowX="hidden"
+      overflowY="auto"
+      pr={1}
+    >
       <PanelHeader
         title="Network input"
         description={
@@ -636,14 +644,14 @@ export default function InfomapOnline() {
         disabled={isRunning}
         onLoadingChange={setIsInputLoading}
       />
-    </>
+    </Box>
   );
   const renderParametersPanel = () => (
     <>
       <PanelHeader
         title="Parameters"
         description="CLI arguments and common options"
-        action={<Box display={{ base: "none", xl: "block" }}>{runButton}</Box>}
+        action={<Box display={{ base: "none", lg: "block" }}>{runButton}</Box>}
       />
 
       <Box flexShrink={0} mb={4}>
@@ -666,10 +674,12 @@ export default function InfomapOnline() {
       p={4}
       templateAreas={{
         base: "'console'",
+        lg: "'console output'",
         xl: "'input console output'",
       }}
       templateColumns={{
         base: "minmax(0, 1fr)",
+        lg: "minmax(28rem, 1fr) minmax(20rem, 34rem)",
         xl: "minmax(18rem, 22rem) minmax(28rem, 1fr) minmax(20rem, 34rem)",
       }}
       templateRows={{
@@ -728,6 +738,7 @@ export default function InfomapOnline() {
               Input
             </Button>
             <Button
+              display={{ base: "inline-flex", lg: "none" }}
               onClick={() => setMobilePanel("parameters")}
               size="sm"
               variant="surface"
@@ -735,7 +746,7 @@ export default function InfomapOnline() {
               <LuPanelRightOpen />
               Parameters
             </Button>
-            {runButton}
+            <Box display={{ base: "block", lg: "none" }}>{runButton}</Box>
           </HStack>
           <ButtonGroup
             attached
@@ -846,7 +857,7 @@ export default function InfomapOnline() {
         minH={0}
         minW={0}
         maxH="100%"
-        display={{ base: "none", xl: "flex" }}
+        display={{ base: "none", lg: "flex" }}
         flexDirection="column"
         overflow="hidden"
         bg="white"
