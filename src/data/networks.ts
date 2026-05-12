@@ -53,9 +53,9 @@ export const nineTriangles = `# A hierarchical network of nine triangles
 20 22
 21 25
 24 26
-5 10
-9 19
-18 23`;
+5 10 0.8
+9 19 0.8
+18 23 0.8`;
 
 export const pajek = `# A network in Pajek format
 *Vertices 6

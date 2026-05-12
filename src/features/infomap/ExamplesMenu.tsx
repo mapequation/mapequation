@@ -81,7 +81,7 @@ const categories: { label: string; networks: ExampleNetwork[] }[] = [
         name: "nineTriangles",
         label: "Nine triangles",
         value: networks.nineTriangles,
-        args: undirected,
+        args: { "--directed": false, "--two-level": false },
       },
     ],
   },
