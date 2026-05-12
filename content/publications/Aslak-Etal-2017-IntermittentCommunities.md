@@ -5,6 +5,12 @@ year: 2018
 journal: "Phys. Rev. E 97, 062312 (2018)"
 doi: "https://doi.org/10.1103/PhysRevE.97.062312"
 arxiv: "1711.07649"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Domenico-Etal-2015-Multiplex
+  - Kawamoto-Etal-2015-Resolutionlimit
+  - Edler-Etal-2017-MappingHigherOrder
 figure:
   caption: "FIG. 1 Going beyond standard methods makes it possible to take advantage of richer interaction data. (a) Standard methods shoehorn interaction data about a complex system into an often unweighted and undirected network, which limits what regularities can be detected. (b) Modeling and mapping higher-order network flows can break this detectability limit."
 ---

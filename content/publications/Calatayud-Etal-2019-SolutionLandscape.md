@@ -5,6 +5,13 @@ year: 2019
 journal: "Phys. Rev. E 100, 052308 (2019)"
 doi: "https://doi.org/10.1103/PhysRevE.100.052308"
 arxiv: "1905.11230"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Kheirkhahzadeh-Etal-2016-Markovtimes
+  - Edler-Etal-2017-Bioregions
+  - Edler-Etal-2017-MappingHigherOrder
 links:
   - label: "Code & data"
     href: "https://github.com/mapequation/solution-landscape"

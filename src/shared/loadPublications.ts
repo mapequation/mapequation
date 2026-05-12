@@ -16,6 +16,7 @@ const publicationSchema = z.object({
   journal: z.string().optional(),
   doi: z.string().url().optional(),
   arxiv: z.string().optional(),
+  cites: z.array(z.string()).optional(),
   pdf: z.string().optional(),
   links: z
     .array(z.object({ label: z.string(), href: z.string().url() }))

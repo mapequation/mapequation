@@ -5,6 +5,10 @@ year: 2015
 journal: "Phys Rev E 91, 012809 (2015)"
 doi: "http://dx.doi.org/10.1103/PhysRevE.91.012809"
 arxiv: "1402.4385"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Lambiotte-Rosvall-2012-Smart-teleportation
 figure:
   caption: "FIG. 3 Detected sizes of modules for each Sierpinski triangle of different size l with the two-level method (circular points) and the multilevel method (cross points). For example, the two-level method detects modules of 3 links and 12 links when the hierarchy of the Sierpinski triangle is three. The Sierpinski triangles up to three levels are illustrated at the top."
 ---

@@ -5,6 +5,20 @@ year: 2021
 journal: "Comm. Phys. 4, 133 (2021)"
 doi: "https://doi.org/10.1038/s42005-021-00634-z"
 arxiv: "2101.00656"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Domenico-Etal-2015-Multiplex
+  - Kawamoto-Etal-2015-Resolutionlimit
+  - Kheirkhahzadeh-Etal-2016-Markovtimes
+  - Edler-Etal-2017-Bioregions
+  - Edler-Etal-2017-MappingHigherOrder
+  - Aslak-Etal-2017-IntermittentCommunities
+  - Calatayud-Etal-2019-SolutionLandscape
+  - Emmons-Etal-2019-MetaDataMapEquation
+  - Blocker-Etal-2020-BipartiteMapEquation
+  - Smiljanic-Etal-2020-BayesianMapEquation
+  - Farage-Etal-2021-Ecological-Networks
 links:
   - label: "Code & data"
     href: "https://github.com/mapequation/mapping-hypergraphs"

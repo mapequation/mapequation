@@ -4,6 +4,25 @@ authors: "Christopher Blöcker, Jelena Smiljanić, Ingo Scholtes, Martin Rosvall
 year: 2022
 journal: "Proceedings of Machine Learning Research, PMLR 198:52:1-52:18 (2022)"
 arxiv: "2208.14220"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Rosvall-Bergstrom-2011-Multilevel
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Domenico-Etal-2015-Multiplex
+  - Kawamoto-Etal-2015-Resolutionlimit
+  - Kheirkhahzadeh-Etal-2016-Markovtimes
+  - Edler-Etal-2017-Bioregions
+  - Edler-Etal-2017-MappingHigherOrder
+  - Aslak-Etal-2017-IntermittentCommunities
+  - Emmons-Etal-2019-MetaDataMapEquation
+  - Blocker-Etal-2020-BipartiteMapEquation
+  - Smiljanic-Etal-2020-BayesianMapEquation
+  - Eriksson-Etal-2020-MappingHypergraphs
+  - Farage-Etal-2021-Ecological-Networks
+  - Smiljanic-Etal-2021-MappingIncomplete
+  - Bassolas-Etal-2021-MetadataInformed
+  - Blocker-Etal-2022-MapEquationCentrality
 links:
   - { label: "Proceedings of Machine Learning Research, PMLR 198:52:1-52:18 (2022)", href: "https://proceedings.mlr.press/v198/blocker22a/blocker22a.pdf" }
   - { label: "OpenReview", href: "https://openreview.net/pdf?id=PTz0aXJp7A" }

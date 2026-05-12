@@ -5,6 +5,8 @@ year: 2009
 journal: "Eur. Phys. J. Special Topics 178, 13 (2009)"
 doi: "http://dx.doi.org/10.1140/epjst/e2010-01179-1"
 arxiv: "0906.1405"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
 figure:
   caption: "FIG. 1 Detecting regularities in patterns of movement on a network (derived from (14) and also available in a dynamic version (18)). (a) We want to effectively and concisely describe the trace of a random walker on a network. The orange line shows one sample trajectory. For an optimally efficient one-level description, we can use the codewords of the Huffman codebook depicted in (b). The 314 bits shown under the network describes the sample trajectory in (a), starting with 1111100 for the first node on the walk in the upper left corner, 1100 for the second node, etc., and ending with 00011 for the last node on the walk in the lower right corner. (c) A two-level description of the random walk, in which an index codebook is used to switch between module codebooks, yields on average a 32% shorter description for this network. The codes of the index codebook for switching module codebooks and the codes used to indicate an exit from each module are shown to the left and the right of the arrows under the network, respectively. Using this code, we capitalize on structures with long persistence times, and we can use fewer bits than we could do with a one-level description. For the walk in (a), we only need the 243 bits shown under the the network in (c). The first three bits 111 indicate that the walk begins in the red module, the code 0000 specifies the first node on the walk, and so forth. (d) Reporting only the module names, and not the locations within the modules, provides an efficient coarse-graining of the network."
 ---

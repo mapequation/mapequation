@@ -8,6 +8,40 @@ category: tutorial
 journal: "ACM Computing Surveys 58(7), 1-34 (2026)"
 doi: "https://doi.org/10.1145/3779648"
 arxiv: "2311.04036"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Rosvall-Bergstrom-2010-Mapping-change
+  - Rosvall-Bergstrom-2011-Multilevel
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Bohlin-Etal-2014-MapEquationFramework
+  - Rosvall-Etal-2014-Memory
+  - Domenico-Etal-2015-Multiplex
+  - Kawamoto-Etal-2015-Resolutionlimit
+  - Kheirkhahzadeh-Etal-2016-Markovtimes
+  - Persson-Etal-2016-SparseMarkovMaps
+  - Edler-Etal-2017-Bioregions
+  - Edler-Etal-2017-MappingHigherOrder
+  - Aslak-Etal-2017-IntermittentCommunities
+  - Calatayud-Etal-2019-SolutionLandscape
+  - Emmons-Etal-2019-MetaDataMapEquation
+  - Blocker-Etal-2020-BipartiteMapEquation
+  - Smiljanic-Etal-2020-BayesianMapEquation
+  - Eriksson-Etal-2020-MappingHypergraphs
+  - Eriksson-Etal-2021-FlowBasedHypergraphs
+  - Farage-Etal-2021-Ecological-Networks
+  - Smiljanic-Etal-2021-MappingIncomplete
+  - Edler-Etal-2022-VariableMarkov
+  - Neuman-Etal-2022-CrossValidation
+  - Bassolas-Etal-2021-MetadataInformed
+  - Blocker-Etal-2022-MapEquationCentrality
+  - Blocker-Etal-2022-MapEquationSimilarity
+  - Kirkley-Etal-2023-ModalNetworks
+  - Holmgren-Etal-2023-HigherOrderChange
+  - Neuman-Etal-2024-ModuleRegularization
+  - Lindstrom-Etal-2025-LinkPrediction
+  - Neuman-Etal-2025-BayesianClustering
+  - Lindstrom-Etal-2026-MemoryBiased
 links:
   - { label: "Tutorial notebooks", href: "https://github.com/mapequation/infomap-tutorial-notebooks" }
 figure:

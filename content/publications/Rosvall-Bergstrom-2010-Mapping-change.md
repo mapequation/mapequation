@@ -5,6 +5,9 @@ year: 2010
 journal: "PLoS ONE 5(1): e8694 (2010)"
 doi: "http://dx.doi.org/10.1371/journal.pone.0008694"
 arxiv: "0812.1242"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
 figure:
   caption: "FIG. 3 Mapping change in science. This set of scientific fields show the major shifts in the last decade of science. Each significance clustering for the citation networks in years 2001, 2003, 2005, and 2007 occupies a column in the diagram and is horizontally connected to preceding and succeeding significance clusterings by stream fields. Each block in a column represents a field and the height of the block reflects citation flow through the field. The fields are ordered from bottom to top by their size with mutually nonsignificant fields placed together and separated by half the standard spacing. We use a darker color to indicate the significant subset of each cluster. All journals that are clustered in the field of neuroscience in year 2007 are colored to highlight the fusion and formation of neuroscience."
 ---

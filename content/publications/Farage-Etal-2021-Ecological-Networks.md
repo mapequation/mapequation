@@ -4,6 +4,20 @@ authors: "Carmel Farage, Daniel Edler, Anna Eklöf, Martin Rosvall, and Shai Pil
 year: 2021
 journal: "Methods Ecol Evol. 2021;12:778-786"
 doi: "https://doi.org/10.1111/2041-210X.13569"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Rosvall-Etal-2014-Memory
+  - Domenico-Etal-2015-Multiplex
+  - Kawamoto-Etal-2015-Resolutionlimit
+  - Kheirkhahzadeh-Etal-2016-Markovtimes
+  - Edler-Etal-2017-Bioregions
+  - Edler-Etal-2017-MappingHigherOrder
+  - Peixoto-Rosvall-2017-DynamicCommunityStructures
+  - Aslak-Etal-2017-IntermittentCommunities
+  - Calatayud-Etal-2019-SolutionLandscape
+  - Blocker-Etal-2020-BipartiteMapEquation
+  - Smiljanic-Etal-2020-BayesianMapEquation
 links:
   - { label: "bioRxiv:2020.04.14", href: "https://www.biorxiv.org/content/10.1101/2020.04.14.040519v2.full" }
 figure:

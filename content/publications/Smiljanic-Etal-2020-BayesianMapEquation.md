@@ -5,6 +5,14 @@ year: 2020
 journal: "Phys. Rev. E 102, 012302 (2020)"
 doi: "https://doi.org/10.1103/PhysRevE.102.012302"
 arxiv: "1912.05377"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Kheirkhahzadeh-Etal-2016-Markovtimes
+  - Edler-Etal-2017-Bioregions
+  - Edler-Etal-2017-MappingHigherOrder
+  - Aslak-Etal-2017-IntermittentCommunities
+  - Blocker-Etal-2020-BipartiteMapEquation
 figure:
   caption: "FIG. Alluvial diagrams of the Jazz collaboration network show changes in community structure with missing links. (a) The standard map equation and (b) the Bayesian estimate of the map equation with prior ln(V). Compared to the standard map equation, the communities detected using the Bayesian estimate of the map equation are more robust to missing links."
 ---

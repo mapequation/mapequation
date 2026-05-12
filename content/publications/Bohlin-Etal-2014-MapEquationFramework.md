@@ -4,6 +4,15 @@ authors: "Ludvig Bohlin, Daniel Edler, Andrea Lancichinetti, Martin Rosvall"
 year: 2014
 journal: "Measuring Scholarly Impact (Springer, 2014), Chapter 1"
 doi: "https://doi.org/10.1007/978-3-319-10377-8_1"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Rosvall-Bergstrom-2010-Mapping-change
+  - Esquivel-Rosvall-2011-Overlapping
+  - Rosvall-Bergstrom-2011-Multilevel
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Rosvall-Etal-2014-Memory
+  - Kawamoto-Etal-2015-Resolutionlimit
 category: tutorial
 ---
 

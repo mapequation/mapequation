@@ -6,6 +6,16 @@ date: "2023-06-26"
 journal: "Applied Network Science 8, 42 (2023)"
 doi: "https://doi.org/10.1007/s41109-023-00565-4"
 arxiv: "2303.00622"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Persson-Etal-2016-SparseMarkovMaps
+  - Edler-Etal-2017-Bioregions
+  - Edler-Etal-2017-MappingHigherOrder
+  - Farage-Etal-2021-Ecological-Networks
+  - Neuman-Etal-2022-CrossValidation
+  - Blocker-Etal-2022-MapEquationCentrality
+  - Blocker-Etal-2022-MapEquationSimilarity
 links:
   - { label: "Alluvial app", href: "https://github.com/mapequation/alluvial" }
   - { label: "Notebooks", href: "https://github.com/mapequation/mapping-change-2" }

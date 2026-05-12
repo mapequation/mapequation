@@ -5,6 +5,21 @@ year: 2022
 journal: "Appl Netw Sci 7, 56 (2022)"
 doi: "https://doi.org/10.1007/s41109-022-00477-9"
 arxiv: "2201.12590"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Domenico-Etal-2015-Multiplex
+  - Kawamoto-Etal-2015-Resolutionlimit
+  - Kheirkhahzadeh-Etal-2016-Markovtimes
+  - Edler-Etal-2017-Bioregions
+  - Edler-Etal-2017-MappingHigherOrder
+  - Aslak-Etal-2017-IntermittentCommunities
+  - Blocker-Etal-2020-BipartiteMapEquation
+  - Smiljanic-Etal-2020-BayesianMapEquation
+  - Eriksson-Etal-2020-MappingHypergraphs
+  - Farage-Etal-2021-Ecological-Networks
+  - Blocker-Etal-2022-MapEquationSimilarity
 links:
   - label: "Code & data"
     href: "https://github.com/mapequation/map-equation-centrality"

@@ -5,6 +5,10 @@ year: 2014
 journal: "Nature Comm. 5, 4630 (2014)"
 doi: "http://dx.doi.org/10.1038/ncomms5630"
 arxiv: "1305.4807"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Lambiotte-Rosvall-2012-Smart-teleportation
 links:
   - { label: "data", href: "https://bitbucket.org/mapequation/memory-network-data/wiki/Home" }
 figure:

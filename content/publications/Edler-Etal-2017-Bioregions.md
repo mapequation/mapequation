@@ -5,6 +5,8 @@ year: 2017
 journal: "Syst. Biol. 66 (2): 197-204 (2017)"
 doi: "http://dx.doi.org/10.1093/sysbio/syw087"
 arxiv: "1512.00892"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
 links:
   - label: "Supplementary materials"
     href: "https://github.com/mapequation/infomap-bioregions-supplementary-materials"

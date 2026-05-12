@@ -5,6 +5,13 @@ year: 2019
 journal: "Phys. Rev. E 100, 022301 (2019)"
 doi: "https://doi.org/10.1103/PhysRevE.100.022301"
 arxiv: "1810.10433"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Edler-Etal-2017-Bioregions
+  - Edler-Etal-2017-MappingHigherOrder
+  - Peixoto-Rosvall-2017-DynamicCommunityStructures
 figure:
   caption: "FIG. 1 (a,d) Illustrating how our formulation of the content map equation extends the traditional map equation. (a) An example random walk on a weighted, undirected network. The thickness of each edge corresponds to its weight. (d) Introducing four discrete metadata values, depicted by shape, to the nodes of the network. Our extension of the traditional map equation with the content map equation additionally encodes the metadata value at each step of the random walk by introducing metadata codebooks."
 ---

@@ -5,6 +5,16 @@ year: 2017
 journal: "Algorithms 10, 112 (2017)"
 doi: "http://dx.doi.org/10.3390/a10040112"
 arxiv: "1706.04792"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Rosvall-Bergstrom-2011-Multilevel
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Rosvall-Etal-2014-Memory
+  - Domenico-Etal-2015-Multiplex
+  - Kawamoto-Etal-2015-Resolutionlimit
+  - Persson-Etal-2016-SparseMarkovMaps
+  - Edler-Etal-2017-Bioregions
 figure:
   caption: "FIG. 1 Going beyond standard methods makes it possible to take advantage of richer interaction data. (a) Standard methods shoehorn interaction data about a complex system into an often unweighted and undirected network, which limits what regularities can be detected. (b) Modeling and mapping higher-order network flows can break this detectability limit."
 ---

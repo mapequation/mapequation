@@ -5,6 +5,12 @@ year: 2016
 journal: "Phys. Rev. E 93, 032309 (2016)"
 doi: "http://dx.doi.org/10.1103/PhysRevE.93.032309"
 arxiv: "1511.01540"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Esquivel-Rosvall-2011-Overlapping
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Kawamoto-Etal-2015-Resolutionlimit
 figure:
   caption: "FIG. 1 The Markov time sets the scale of the flow modules. A schematic Sierpinski network with hierarchically nested modules, and the code length for different partitions indicated in the network as a function of the Markov time. The partition with the shortest code length for a given Markov time is highlighted."
 ---

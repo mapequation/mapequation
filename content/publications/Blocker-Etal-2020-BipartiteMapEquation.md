@@ -5,6 +5,14 @@ year: 2020
 journal: "Phys. Rev. E 102, 052305 (2020)"
 doi: "https://doi.org/10.1103/PhysRevE.102.052305"
 arxiv: "2007.01666"
+cites:
+  - Rosvall-Bergstrom-2008-Maps-of-information-flow
+  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
+  - Lambiotte-Rosvall-2012-Smart-teleportation
+  - Kheirkhahzadeh-Etal-2016-Markovtimes
+  - Edler-Etal-2017-Bioregions
+  - Edler-Etal-2017-MappingHigherOrder
+  - Smiljanic-Etal-2020-BayesianMapEquation
 figure:
   caption: "FIG. Graphical representation of the code books for the standard map equation and the bipartite map equation with α=0.1 in an unweighted example network where colors indicate modules. Block width corresponds to code word usage rate and block height to code-book entropy, a block's contribution to the map equation is its area. Letters in the blocks indicate which nodes they refer to, and e stands for module exits. The horizontal gray bars show the contributions at index and module level. (a) The example network with color-coded modules. (b) The standard map equation calculates the code length as 2.61 bits. (c) Using node-type information worth I = 0.47 bits, the bipartite map equation with mixed node-type memory improves the compression by 0.65 bits to 1.96 bits."
 ---
