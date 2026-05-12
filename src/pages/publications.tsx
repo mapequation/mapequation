@@ -180,16 +180,11 @@ const PublicationsAccordion = ({
                   {p.doiHref && p.journal && (
                     <ActionLink href={p.doiHref}>{p.journal} ↗</ActionLink>
                   )}
-                  {!p.doiHref &&
-                    p.journal &&
-                    !(
-                      p.isPreprint &&
-                      p.journal.toLowerCase().startsWith("arxiv")
-                    ) && (
-                      <Text color="gray.600" fontSize="sm" mb={0}>
-                        {p.journal}
-                      </Text>
-                    )}
+                  {!p.doiHref && p.journal && (
+                    <Text color="gray.600" fontSize="sm" mb={0}>
+                      {p.journal}
+                    </Text>
+                  )}
                   {p.arxiv && (
                     <ActionLink href={`https://arxiv.org/abs/${p.arxiv}`}>
                       arXiv:{p.arxiv}

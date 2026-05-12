@@ -63,10 +63,10 @@ export function loadPublications(): Publication[] {
       console.error(`Error parsing publication ${slug}:`, err);
       return {} as Publication;
     }
-    
+
     const body = content.trim();
     if (!parsed.doi) {
-      parsed.category = "Preprint"
+      parsed.category = "Preprint";
     }
     return {
       ...parsed,
