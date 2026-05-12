@@ -21,6 +21,14 @@ import {
   useState,
 } from "react";
 import { LuDownload, LuMaximize } from "react-icons/lu";
+import {
+  buildHierarchicalModuleColors,
+  fallbackModuleColor,
+  modulePathFromNodePath,
+  type ModuleColorModel,
+  type ModuleId,
+  type ModuleMap,
+} from "./moduleColors";
 import type { PreviewGraph, PreviewNode } from "./parseInfomapPreview";
 
 type SimNode = PreviewNode &
@@ -129,6 +137,21 @@ function nodeModuleSlices(
   return [];
 }
 
+function hasOverlappingModuleFlows(
+  moduleFlows?: Map<number, { module: number; flow: number }[]>,
+) {
+  if (!moduleFlows) return false;
+  for (const flows of moduleFlows.values()) {
+    let positiveFlowCount = 0;
+    for (const flow of flows) {
+      if (flow.flow <= 0) continue;
+      positiveFlowCount += 1;
+      if (positiveFlowCount > 1) return true;
+    }
+  }
+  return false;
+}
+
 type Graph = {
   nodes: SimNode[];
   links: SimLink[];
@@ -140,27 +163,7 @@ type HoverState = {
   y: number;
 } | null;
 
-type ModuleId = number | string;
-type ModuleMap = Map<number, ModuleId>;
-
-const palette = [
-  "#EBC384",
-  "#82A3C9",
-  "#C2554A",
-  "#ADB580",
-  "#A37CB6",
-  "#E68C6C",
-  "#7DB7AE",
-  "#DFDDA2",
-  "#C9748A",
-  "#5D7FA0",
-  "#D4925E",
-  "#6A8C5C",
-  "#B4CCDF",
-  "#ECA770",
-  "#8C7363",
-  "#B49AD0",
-];
+type ModuleColorResolver = (moduleId: ModuleId) => string;
 
 const neutralNode = "#D7D9DD";
 const unknownNode = "#CBD0D6";
@@ -239,42 +242,6 @@ function createGraph(parsed: Extract<PreviewGraph, { status: "ok" }>): Graph {
   return { nodes, links };
 }
 
-const moduleColorCache = new Map<ModuleId, string>();
-function moduleColor(moduleId: ModuleId) {
-  const cached = moduleColorCache.get(moduleId);
-  if (cached) return cached;
-  let color: string;
-  if (typeof moduleId === "number") {
-    color = palette[Math.abs(moduleId) % palette.length];
-  } else {
-    let hash = 0;
-    for (let i = 0; i < moduleId.length; i++) {
-      hash = (hash * 31 + moduleId.charCodeAt(i)) | 0;
-    }
-    color = palette[Math.abs(hash) % palette.length];
-  }
-  moduleColorCache.set(moduleId, color);
-  return color;
-}
-
-const shadedModuleColorCache = new Map<ModuleId, string>();
-function shadedModuleColor(moduleId: ModuleId) {
-  const cached = shadedModuleColorCache.get(moduleId);
-  if (cached) return cached;
-  const shaded = shadeColor(moduleColor(moduleId), -42);
-  shadedModuleColorCache.set(moduleId, shaded);
-  return shaded;
-}
-
-const darkenedModuleColorCache = new Map<ModuleId, string>();
-function darkenedModuleColor(moduleId: ModuleId) {
-  const cached = darkenedModuleColorCache.get(moduleId);
-  if (cached) return cached;
-  const dark = shadeColor(moduleColor(moduleId), -70);
-  darkenedModuleColorCache.set(moduleId, dark);
-  return dark;
-}
-
 function shadeColor(hex: string, amount: number) {
   const value = hex.replace("#", "");
   const red = Number.parseInt(value.slice(0, 2), 16);
@@ -286,6 +253,32 @@ function shadeColor(hex: string, amount: number) {
       .padStart(2, "0");
 
   return `#${channel(red)}${channel(green)}${channel(blue)}`;
+}
+
+function mixHexColors(a: string, b: string, weightB: number) {
+  const parse = (hex: string) => {
+    const value = hex.replace("#", "");
+    return [
+      Number.parseInt(value.slice(0, 2), 16),
+      Number.parseInt(value.slice(2, 4), 16),
+      Number.parseInt(value.slice(4, 6), 16),
+    ] as const;
+  };
+  const [ar, ag, ab] = parse(a);
+  const [br, bg, bb] = parse(b);
+  const t = Math.max(0, Math.min(1, weightB));
+  const channel = (ca: number, cb: number) =>
+    Math.round(ca * (1 - t) + cb * t)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(ar, br)}${channel(ag, bg)}${channel(ab, bb)}`;
+}
+
+function sharedPrefixLength(a: ModuleId[], b: ModuleId[]) {
+  const length = Math.min(a.length, b.length);
+  let shared = 0;
+  while (shared < length && a[shared] === b[shared]) shared += 1;
+  return shared;
 }
 
 const arrowStride = 7;
@@ -333,6 +326,9 @@ function renderForExport(
     showArrows: boolean;
     modules: ModuleMap;
     moduleFlows?: Map<number, { module: number; flow: number }[]>;
+    moduleColorFor: ModuleColorResolver;
+    shadedModuleColorFor: ModuleColorResolver;
+    darkenedModuleColorFor: ModuleColorResolver;
     coloredByModules: boolean;
     transformX: number;
     transformY: number;
@@ -343,6 +339,9 @@ function renderForExport(
     showArrows,
     modules,
     moduleFlows,
+    moduleColorFor,
+    shadedModuleColorFor,
+    darkenedModuleColorFor,
     coloredByModules,
     transformX,
     transformY,
@@ -363,7 +362,9 @@ function renderForExport(
       : undefined;
     const intraModule = sharedModule !== undefined;
     const baseStroke =
-      sharedModule !== undefined ? shadedModuleColor(sharedModule) : linkColor;
+      sharedModule !== undefined
+        ? shadedModuleColorFor(sharedModule)
+        : linkColor;
     const fade = intraModule ? 0.42 : 0.26;
     const stroke = fadeToBackgroundCached(baseStroke, fade);
     const lineWidth = link.width;
@@ -465,14 +466,14 @@ function renderForExport(
         ctx.moveTo(nx, ny);
         ctx.arc(nx, ny, node.radius, startAngle, endAngle);
         ctx.closePath();
-        ctx.fillStyle = moduleColor(slice.moduleId);
+        ctx.fillStyle = moduleColorFor(slice.moduleId);
         ctx.fill();
         startAngle = endAngle;
       }
     } else {
       const fill =
         slices.length === 1
-          ? moduleColor(slices[0].moduleId)
+          ? moduleColorFor(slices[0].moduleId)
           : coloredByModules
             ? unknownNode
             : neutralNode;
@@ -523,7 +524,7 @@ function renderForExport(
     const tied = slices.length > 1 && slices[0].flow === slices[1].flow;
     const labelColor =
       slices.length > 0 && !tied
-        ? darkenedModuleColor(slices[0].moduleId)
+        ? darkenedModuleColorFor(slices[0].moduleId)
         : "#2D3748";
     ctx.font = `${fontSize}px sans-serif`;
     const x = (node.x ?? 0) + node.radius + 3;
@@ -585,6 +586,11 @@ function NetworkPreviewImpl({
   const transformRef = useRef<ZoomTransform>(zoomIdentity);
   const dimensionsRef = useRef({ width: 0, height: 0, dpr: 1 });
   const frameRef = useRef(0);
+  const hoverFrameRef = useRef(0);
+  const pendingHoverPointRef = useRef<{
+    clientX: number;
+    clientY: number;
+  } | null>(null);
   const draggingRef = useRef<SimNode | null>(null);
   const hoverRef = useRef<HoverState>(null);
   const directedRef = useRef(directed);
@@ -593,6 +599,91 @@ function NetworkPreviewImpl({
   const hoverCardRef = useRef<HTMLDivElement | null>(null);
   const quadtreeRef = useRef<Quadtree<SimNode> | null>(null);
   const maxNodeRadiusRef = useRef(0);
+  const levelModulesRef = useRef<typeof levelModules>(undefined);
+  const activeLevelRef = useRef(1);
+  const nodeHierarchyPathsRef = useRef<Map<string, ModuleId[]>>(new Map());
+  const moduleColorModelRef = useRef<ModuleColorModel>({
+    colorByModule: new Map(),
+  });
+  const moduleColorCacheRef = useRef<Map<ModuleId, string>>(new Map());
+  const shadedModuleColorCacheRef = useRef<Map<ModuleId, string>>(new Map());
+  const darkenedModuleColorCacheRef = useRef<Map<ModuleId, string>>(new Map());
+
+  const clearModuleColorCaches = () => {
+    moduleColorCacheRef.current.clear();
+    shadedModuleColorCacheRef.current.clear();
+    darkenedModuleColorCacheRef.current.clear();
+  };
+
+  const moduleColorFor: ModuleColorResolver = (moduleId) => {
+    const cached = moduleColorCacheRef.current.get(moduleId);
+    if (cached) return cached;
+    const color =
+      moduleColorModelRef.current.colorByModule.get(moduleId) ??
+      fallbackModuleColor(moduleId);
+    moduleColorCacheRef.current.set(moduleId, color);
+    return color;
+  };
+  const shadedModuleColorFor: ModuleColorResolver = (moduleId) => {
+    const cached = shadedModuleColorCacheRef.current.get(moduleId);
+    if (cached) return cached;
+    const color = shadeColor(moduleColorFor(moduleId), -42);
+    shadedModuleColorCacheRef.current.set(moduleId, color);
+    return color;
+  };
+  const darkenedModuleColorFor: ModuleColorResolver = (moduleId) => {
+    const cached = darkenedModuleColorCacheRef.current.get(moduleId);
+    if (cached) return cached;
+    const color = shadeColor(moduleColorFor(moduleId), -70);
+    darkenedModuleColorCacheRef.current.set(moduleId, color);
+    return color;
+  };
+
+  const rebuildNodeHierarchyPaths = () => {
+    const graph = graphRef.current;
+    if (!graph) {
+      nodeHierarchyPathsRef.current = new Map();
+      return;
+    }
+    const paths = new Map<string, ModuleId[]>();
+    const levelMaps = levelModulesRef.current;
+    const activeLevel = activeLevelRef.current;
+    const fallbackModules = modulesRef.current;
+    for (const node of graph.nodes) {
+      const nodeId = Number(node.id);
+      const explicitPath = modulePathFromNodePath(node.path, activeLevel);
+      const path: ModuleId[] = explicitPath.length > 0 ? explicitPath : [];
+      if (path.length > 0) {
+        paths.set(node.id, path);
+        continue;
+      }
+      for (let levelIndex = 1; levelIndex <= activeLevel; levelIndex++) {
+        const moduleId =
+          levelMaps?.get(levelIndex)?.get(nodeId) ??
+          (levelIndex === activeLevel
+            ? fallbackModules.get(nodeId)
+            : undefined);
+        if (moduleId !== undefined) path.push(moduleId);
+      }
+      if (path.length > 0) paths.set(node.id, path);
+    }
+    nodeHierarchyPathsRef.current = paths;
+  };
+
+  const rebuildModuleColors = () => {
+    const graph = graphRef.current;
+    if (!graph) {
+      moduleColorModelRef.current = { colorByModule: new Map() };
+      return;
+    }
+    moduleColorModelRef.current = buildHierarchicalModuleColors({
+      activeLevel: activeLevelRef.current,
+      levelModules: levelModulesRef.current,
+      modules: modulesRef.current,
+      nodes: graph.nodes,
+    });
+    clearModuleColorCaches();
+  };
 
   const rebuildQuadtree = () => {
     const graph = graphRef.current;
@@ -633,6 +724,10 @@ function NetworkPreviewImpl({
   const [level, setLevel] = useState(1);
   const [isDownloading, setIsDownloading] = useState(false);
   const parsedKey = useMemo(() => previewGraphSignature(parsed), [parsed]);
+  const [initialLayoutReadyKey, setInitialLayoutReadyKey] = useState<
+    string | null
+  >(null);
+  const [initialLayoutProgress, setInitialLayoutProgress] = useState(0);
 
   const levelLocked = selectedLevel !== null && selectedLevel !== undefined;
   const moduleLevelCount = Math.max(1, (numLevels ?? 1) - 1);
@@ -648,12 +743,21 @@ function NetworkPreviewImpl({
   const activeModules = levelModules?.get(activeLevel ?? 1) ?? modules;
   const coloredByModules =
     parsed.status === "ok" && hasMatchingModules(parsed.nodes, activeModules);
+  const initialLayoutPending =
+    parsed.status === "ok" && initialLayoutReadyKey !== parsedKey;
   const hasLevelControl =
     coloredByModules && (levelLocked || moduleLevelCount > 1);
-  const usePieFlows = activeLevel === moduleLevelCount || moduleLevelCount <= 1;
+  const hasActiveLevelModules = levelModules?.has(activeLevel ?? 1) ?? false;
+  const hasOverlappingFlows = hasOverlappingModuleFlows(moduleFlows);
+  const usePieFlows =
+    hasOverlappingFlows ||
+    (!hasActiveLevelModules &&
+      (activeLevel === moduleLevelCount || moduleLevelCount <= 1));
   const modulesRef = useRef(activeModules);
   const coloredByModulesRef = useRef(coloredByModules);
   const moduleFlowsRef = useRef<typeof moduleFlows>(undefined);
+  levelModulesRef.current = levelModules;
+  activeLevelRef.current = activeLevel ?? 1;
   moduleFlowsRef.current = usePieFlows ? moduleFlows : undefined;
 
   const moduleLabel = useMemo(() => {
@@ -727,6 +831,37 @@ function NetworkPreviewImpl({
     }
 
     return nearest;
+  };
+
+  const updateHoverAt = (clientX: number, clientY: number) => {
+    const node = findNearestNode(clientX, clientY);
+    const previousHover = hoverRef.current;
+    if (node) {
+      if (previousHover?.node === node) return;
+      const nextHover = { node, x: clientX, y: clientY };
+      hoverRef.current = nextHover;
+      setHover(nextHover);
+      requestDraw();
+      return;
+    }
+
+    const hoverChanged = previousHover !== null;
+    if (!hoverChanged) return;
+    hoverRef.current = null;
+    setHover(null);
+    requestDraw();
+  };
+
+  const scheduleHoverUpdate = (clientX: number, clientY: number) => {
+    pendingHoverPointRef.current = { clientX, clientY };
+    if (hoverFrameRef.current) return;
+    hoverFrameRef.current = window.requestAnimationFrame(() => {
+      hoverFrameRef.current = 0;
+      const point = pendingHoverPointRef.current;
+      pendingHoverPointRef.current = null;
+      if (!point || draggingRef.current) return;
+      updateHoverAt(point.clientX, point.clientY);
+    });
   };
 
   const zoomStartsOnNode = (event: Event) => {
@@ -847,6 +982,9 @@ function NetworkPreviewImpl({
           showArrows: directedRef.current,
           modules: modulesRef.current,
           moduleFlows: moduleFlowsRef.current,
+          moduleColorFor,
+          shadedModuleColorFor,
+          darkenedModuleColorFor,
           coloredByModules: coloredByModulesRef.current,
           transformX: -minX * scale,
           transformY: -minY * scale,
@@ -893,8 +1031,50 @@ function NetworkPreviewImpl({
 
     const hovered = hoverRef.current?.node ?? null;
     const hoveredId = hovered?.id;
+    const hierarchyPaths = nodeHierarchyPathsRef.current;
+    const hoveredPath = hovered ? hierarchyPaths.get(hovered.id) : undefined;
     const currentModules = modulesRef.current;
     const currentColoredByModules = coloredByModulesRef.current;
+    const currentModuleFlows = moduleFlowsRef.current;
+    const hoveredModuleIds =
+      hovered && currentColoredByModules && currentModuleFlows
+        ? new Set(
+            nodeModuleSlices(hovered, currentModules, currentModuleFlows).map(
+              (slice) => slice.moduleId,
+            ),
+          )
+        : null;
+    const focusStrengthFor = (node: SimNode) => {
+      if (!hovered) return 1;
+      if (node.id === hovered.id) return 1;
+      if (hoveredModuleIds && hoveredModuleIds.size > 0) {
+        const nodeSlices = currentModuleFlows
+          ? nodeModuleSlices(node, currentModules, currentModuleFlows)
+          : [];
+        const nodeModuleId =
+          nodeSlices[0]?.moduleId ?? currentModules.get(Number(node.id));
+        if (nodeSlices.some((slice) => hoveredModuleIds.has(slice.moduleId))) {
+          return 0.95;
+        }
+        if (nodeModuleId !== undefined && hoveredModuleIds.has(nodeModuleId)) {
+          return 0.95;
+        }
+        return 0.15;
+      }
+      if (!hoveredPath || hoveredPath.length === 0) return 0.15;
+      const path = hierarchyPaths.get(node.id);
+      if (!path || path.length === 0) return 0.15;
+      const shared = sharedPrefixLength(hoveredPath, path);
+      if (shared === hoveredPath.length && path.length === hoveredPath.length) {
+        return 0.95;
+      }
+      const relative = shared / Math.max(1, hoveredPath.length);
+      return 0.15 + 0.85 * relative ** 1.6;
+    };
+    const nodeColorWithFocus = (color: string, focus: number) =>
+      hovered ? mixHexColors(color, neutralNode, (1 - focus) * 0.72) : color;
+    const labelColorWithFocus = (color: string, focus: number) =>
+      hovered ? mixHexColors(color, "#A0AEC0", (1 - focus) * 0.6) : color;
 
     const showArrows = directedRef.current;
     const zoomLevel = transformRef.current.k;
@@ -930,18 +1110,29 @@ function NetworkPreviewImpl({
       const directedLink = showArrows || link.directed;
       const baseStroke =
         sharedModule !== undefined
-          ? shadedModuleColor(sharedModule)
+          ? shadedModuleColorFor(sharedModule)
           : linkColor;
-      const fade = hovered
+      const linkFocus =
+        hovered === null
+          ? 1
+          : isConnected
+            ? Math.max(
+                focusStrengthFor(link.source),
+                focusStrengthFor(link.target),
+              )
+            : Math.min(
+                focusStrengthFor(link.source),
+                focusStrengthFor(link.target),
+              );
+      const baseOpacity = intraModule ? 0.42 : 0.26;
+      const linkOpacity = hovered
         ? isConnected
           ? intraModule
             ? 0.62
             : 0.55
-          : 0.18
-        : intraModule
-          ? 0.42
-          : 0.26;
-      const stroke = fadeToBackgroundCached(baseStroke, fade);
+          : baseOpacity * (0.25 + 0.55 * linkFocus)
+        : baseOpacity;
+      const stroke = fadeToBackgroundCached(baseStroke, linkOpacity);
       const lineWidth = link.width;
 
       let endX = tx;
@@ -1011,22 +1202,30 @@ function NetworkPreviewImpl({
     }
 
     const minVisibleNodeRadiusWorld = minRenderedNodeRadiusPixels / zoomLevel;
-    const moduleCentroids = currentColoredByModules
-      ? computeModuleCentroids(
-          graph.nodes,
-          moduleFlowsRef.current,
-          currentModules,
-        )
-      : new Map<ModuleId, { x: number; y: number }>();
+    const moduleCentroids =
+      currentColoredByModules && currentModuleFlows
+        ? computeModuleCentroids(
+            graph.nodes,
+            currentModuleFlows,
+            currentModules,
+          )
+        : new Map<ModuleId, { x: number; y: number }>();
     for (const node of graph.nodes) {
       const nx = node.x ?? 0;
       const ny = node.y ?? 0;
       if (isOffscreen(nx, ny)) continue;
       if (node.radius < minVisibleNodeRadiusWorld) continue;
-      const slices = currentColoredByModules
-        ? nodeModuleSlices(node, currentModules, moduleFlowsRef.current)
-        : [];
+      const nodeModuleId =
+        currentColoredByModules && !currentModuleFlows
+          ? currentModules.get(Number(node.id))
+          : undefined;
+      const slices =
+        currentColoredByModules && currentModuleFlows
+          ? nodeModuleSlices(node, currentModules, currentModuleFlows)
+          : [];
       const isHovered = hoveredId === node.id;
+      const nodeFocus = focusStrengthFor(node);
+      const dominantModuleId = slices[0]?.moduleId ?? nodeModuleId;
 
       if (slices.length > 1) {
         const total = slices.reduce((acc, s) => acc + s.flow, 0) || 1;
@@ -1045,27 +1244,50 @@ function NetworkPreviewImpl({
           context.moveTo(nx, ny);
           context.arc(nx, ny, node.radius, startAngle, endAngle);
           context.closePath();
-          context.fillStyle = moduleColor(slice.moduleId);
+          context.fillStyle = nodeColorWithFocus(
+            moduleColorFor(slice.moduleId),
+            nodeFocus,
+          );
           context.fill();
           startAngle = endAngle;
         }
       } else {
         const fill =
           slices.length === 1
-            ? moduleColor(slices[0].moduleId)
-            : currentColoredByModules
-              ? unknownNode
-              : neutralNode;
+            ? moduleColorFor(slices[0].moduleId)
+            : nodeModuleId !== undefined
+              ? moduleColorFor(nodeModuleId)
+              : currentColoredByModules
+                ? unknownNode
+                : neutralNode;
         context.beginPath();
         context.arc(nx, ny, node.radius, 0, Math.PI * 2);
-        context.fillStyle = fill;
+        context.fillStyle = nodeColorWithFocus(fill, nodeFocus);
         context.fill();
       }
       context.beginPath();
       context.arc(nx, ny, node.radius, 0, Math.PI * 2);
       context.lineWidth = nodeStrokeWorld;
-      context.strokeStyle = isHovered ? "#2D3748" : "#FFFFFF";
-      context.stroke();
+      if (isHovered && slices.length > 1) {
+        const total = slices.reduce((acc, s) => acc + s.flow, 0) || 1;
+        let startAngle = -Math.PI / 2;
+        for (const slice of slices) {
+          const angle = (slice.flow / total) * Math.PI * 2;
+          const endAngle = startAngle + angle;
+          context.beginPath();
+          context.arc(nx, ny, node.radius, startAngle, endAngle);
+          context.strokeStyle = shadeColor(moduleColorFor(slice.moduleId), -86);
+          context.stroke();
+          startAngle = endAngle;
+        }
+      } else {
+        context.strokeStyle = isHovered
+          ? dominantModuleId !== undefined
+            ? shadeColor(moduleColorFor(dominantModuleId), -86)
+            : "#2D3748"
+          : "#FFFFFF";
+        context.stroke();
+      }
     }
 
     for (let i = 0; i < arrowCount; i++) {
@@ -1090,44 +1312,108 @@ function NetworkPreviewImpl({
       context.fill();
     }
 
+    context.restore();
+
     context.textBaseline = "middle";
     context.textAlign = "left";
     context.lineJoin = "round";
     context.lineCap = "butt";
-    context.lineWidth = 4 / zoomLevel;
+    context.lineWidth = 3;
     const skipNumeric = graph.nodes.length > 60;
-    const minLabelPixels = 7;
+    const maxFlow = graph.nodes[0]?.flow ?? 1;
+    const minLabelFont = 10;
+    const maxLabelFont = 18;
+    const labelBudget =
+      zoomLevel < 0.18
+        ? 24
+        : zoomLevel < 0.35
+          ? 48
+          : zoomLevel < 0.7
+            ? 96
+            : graph.nodes.length;
+    const placedLabels: Array<{
+      left: number;
+      right: number;
+      top: number;
+      bottom: number;
+    }> = [];
+    const labelFontSize = (node: SimNode) => {
+      const t = Math.sqrt(Math.max(0, node.flow) / Math.max(maxFlow, 1e-9));
+      return minLabelFont + (maxLabelFont - minLabelFont) * t;
+    };
+    const overlapsLabel = (
+      left: number,
+      right: number,
+      top: number,
+      bottom: number,
+    ) =>
+      placedLabels.some(
+        (box) =>
+          left < box.right &&
+          right > box.left &&
+          top < box.bottom &&
+          bottom > box.top,
+      );
 
     const renderLabel = (node: SimNode) => {
-      const fontSize = Math.max(10, node.radius * 0.95);
-      const slices = currentColoredByModules
-        ? nodeModuleSlices(node, currentModules, moduleFlowsRef.current)
-        : [];
+      const fontSize = labelFontSize(node);
+      const nodeModuleId =
+        currentColoredByModules && !currentModuleFlows
+          ? currentModules.get(Number(node.id))
+          : undefined;
+      const slices =
+        currentColoredByModules && currentModuleFlows
+          ? nodeModuleSlices(node, currentModules, currentModuleFlows)
+          : [];
       const labelColor =
-        slices.length > 0 ? darkenedModuleColor(slices[0].moduleId) : "#2D3748";
+        slices.length > 0
+          ? darkenedModuleColorFor(slices[0].moduleId)
+          : nodeModuleId !== undefined
+            ? darkenedModuleColorFor(nodeModuleId)
+            : "#2D3748";
       context.font = `${fontSize}px sans-serif`;
-      const x = (node.x ?? 0) + node.radius + 3;
-      const y = (node.y ?? 0) - node.radius / 3;
+      const x =
+        transformRef.current.x +
+        (node.x ?? 0) * zoomLevel +
+        Math.max(6, node.radius * zoomLevel + 4);
+      const y =
+        transformRef.current.y + (node.y ?? 0) * zoomLevel - fontSize * 0.1;
+      const labelFocus = focusStrengthFor(node);
       context.strokeStyle = "#ffffff";
-      context.fillStyle = labelColor;
+      context.fillStyle = labelColorWithFocus(labelColor, labelFocus);
       context.strokeText(node.label, x, y);
       context.fillText(node.label, x, y);
     };
 
+    let labelCount = 0;
     for (const node of graph.nodes) {
-      const fontSize = Math.max(10, node.radius * 0.95);
-      if (fontSize * zoomLevel < minLabelPixels) break;
       if (node === hovered) continue;
       if (skipNumeric && node.label === node.id) continue;
       const nx = node.x ?? 0;
       const ny = node.y ?? 0;
-      if (isOffscreen(nx, ny)) continue;
+      const sx = transformRef.current.x + nx * zoomLevel;
+      const sy = transformRef.current.y + ny * zoomLevel;
+      if (sx < -60 || sx > width + 60 || sy < -24 || sy > height + 24) {
+        continue;
+      }
+      const fontSize = labelFontSize(node);
+      const x = sx + Math.max(6, node.radius * zoomLevel + 4);
+      const y = sy - fontSize * 0.1;
+      context.font = `${fontSize}px sans-serif`;
+      const textWidth = context.measureText(node.label).width;
+      const padding = 2;
+      const left = x - padding;
+      const right = x + textWidth + padding;
+      const top = y - fontSize * 0.6 - padding;
+      const bottom = y + fontSize * 0.6 + padding;
+      if (overlapsLabel(left, right, top, bottom)) continue;
       renderLabel(node);
+      placedLabels.push({ left, right, top, bottom });
+      labelCount += 1;
+      if (labelCount >= labelBudget) break;
     }
 
     if (hovered) renderLabel(hovered);
-
-    context.restore();
   }
 
   useEffect(() => {
@@ -1204,16 +1490,21 @@ function NetworkPreviewImpl({
     simulationRef.current = null;
     graphRef.current = null;
     quadtreeRef.current = null;
+    clearModuleColorCaches();
     hoverRef.current = null;
     setHover(null);
 
     if (parsed.status !== "ok") {
+      setInitialLayoutReadyKey(null);
+      setInitialLayoutProgress(0);
       requestDraw();
       return;
     }
 
     const graph = createGraph(parsed);
     graphRef.current = graph;
+    rebuildNodeHierarchyPaths();
+    rebuildModuleColors();
     autoFitActiveRef.current = true;
     let tickCount = 0;
     const weights = graph.links.map((link) => link.weight);
@@ -1222,9 +1513,21 @@ function NetworkPreviewImpl({
     const wRange = wMax - wMin || 1;
     const lerp = (t: number, a: number, b: number) => a + (b - a) * t;
     const linkScale = (weight: number) => (weight - wMin) / wRange;
+    const compactGraph = graph.nodes.length > 300;
+    const linkDistanceRange = compactGraph
+      ? ([24, 8] as const)
+      : ([30, 12] as const);
+    const chargeStrength = compactGraph ? -30 : -55;
+    const collideMultiplier = compactGraph ? 1.45 : 1.8;
     const linkForce = forceLink<SimNode, SimLink>(graph.links)
       .id((node) => node.id)
-      .distance((link) => lerp(linkScale(link.weight), 30, 15));
+      .distance((link) =>
+        lerp(
+          linkScale(link.weight),
+          linkDistanceRange[0],
+          linkDistanceRange[1],
+        ),
+      );
     const baseStrength = linkForce.strength();
     linkForce.strength((link, index, links) => {
       const factor = lerp(linkScale(link.weight), 0.5, 1);
@@ -1232,46 +1535,77 @@ function NetworkPreviewImpl({
     });
     const simulation = forceSimulation<SimNode, SimLink>(graph.nodes)
       .force("link", linkForce)
-      .force("charge", forceManyBody().strength(-90))
+      .force("charge", forceManyBody().strength(chargeStrength))
       .force(
         "collide",
-        forceCollide<SimNode>().radius((node) => node.radius * 2),
+        forceCollide<SimNode>().radius(
+          (node) => node.radius * collideMultiplier,
+        ),
       )
       .force("center", forceCenter(0, 0))
       .alpha(0.95);
 
     const heavyGraph = graph.nodes.length > 1500;
-    const preTickIterations = heavyGraph ? 30 : 100;
     const baseAlphaDecay = simulation.alphaDecay();
     simulation.alphaDecay(1e-3);
-    simulation.tick(preTickIterations);
-    simulation.alphaDecay(baseAlphaDecay);
-    simulation
-      .on("tick", () => {
-        tickCount += 1;
-        if (tickCount % 5 === 0 && autoFitActiveRef.current) fitToGraph();
-        if (tickCount % 10 === 0) rebuildQuadtree();
-        if (hoverRef.current) positionHoverCard();
-        requestDraw();
-      })
-      .on("end", () => {
-        if (autoFitActiveRef.current) fitToGraph();
+    simulation.stop();
+    simulationRef.current = simulation;
+    setInitialLayoutProgress(0);
+    let cancelled = false;
+    const initialTickTotal = heavyGraph ? 100 : 300;
+    const initialTickChunk = initialTickTotal / 10;
+    const showInitialLayoutProgress = graph.nodes.length > 250;
+    let initialTicks = 0;
+
+    const finishInitialLayout = () => {
+      simulation.alphaDecay(baseAlphaDecay);
+      rebuildQuadtree();
+      fitToGraph();
+      setInitialLayoutReadyKey(parsedKey);
+      simulation
+        .on("tick", () => {
+          tickCount += 1;
+          if (tickCount % 10 === 0) rebuildQuadtree();
+          if (hoverRef.current) positionHoverCard();
+          requestDraw();
+        })
+        .on("end", () => {
+          autoFitActiveRef.current = false;
+          rebuildQuadtree();
+          requestDraw();
+        });
+
+      if (heavyGraph) {
+        simulation.stop();
         autoFitActiveRef.current = false;
-        rebuildQuadtree();
-      });
+      } else {
+        simulation.restart();
+      }
+    };
 
-    rebuildQuadtree();
+    const runInitialTicks = () => {
+      if (cancelled) return;
+      const ticks = Math.min(initialTickChunk, initialTickTotal - initialTicks);
+      simulation.tick(ticks);
+      initialTicks += ticks;
+      setInitialLayoutProgress(initialTicks / initialTickTotal);
+      if (initialTicks < initialTickTotal) {
+        window.requestAnimationFrame(runInitialTicks);
+        return;
+      }
+      finishInitialLayout();
+    };
 
-    if (heavyGraph) {
-      simulation.stop();
-      autoFitActiveRef.current = false;
+    if (showInitialLayoutProgress) {
+      window.requestAnimationFrame(runInitialTicks);
+    } else {
+      simulation.tick(initialTickTotal);
+      setInitialLayoutProgress(1);
+      finishInitialLayout();
     }
 
-    simulationRef.current = simulation;
-    const fitFrame = window.requestAnimationFrame(fitToGraph);
-
     return () => {
-      window.cancelAnimationFrame(fitFrame);
+      cancelled = true;
       simulation.stop();
     };
   }, [parsedKey]);
@@ -1279,22 +1613,42 @@ function NetworkPreviewImpl({
   useEffect(() => {
     modulesRef.current = activeModules;
     coloredByModulesRef.current = coloredByModules;
+    clearModuleColorCaches();
     const graph = graphRef.current;
+    if (!coloredByModules) {
+      moduleColorModelRef.current = { colorByModule: new Map() };
+      rebuildNodeHierarchyPaths();
+      if (graph) {
+        for (const link of graph.links) link.sharedModule = undefined;
+        requestDraw();
+      }
+      return;
+    }
+
     if (graph) {
+      rebuildModuleColors();
       const flows = moduleFlowsRef.current;
       for (const link of graph.links) {
-        link.sharedModule = coloredByModules
-          ? sharedModuleFor(
-              link.source.id,
-              link.target.id,
-              activeModules,
-              flows,
-            )
-          : undefined;
+        link.sharedModule = sharedModuleFor(
+          link.source.id,
+          link.target.id,
+          activeModules,
+          flows,
+        );
       }
+    } else {
+      moduleColorModelRef.current = { colorByModule: new Map() };
     }
+    rebuildNodeHierarchyPaths();
     requestDraw();
-  }, [activeModules, coloredByModules, moduleFlows, parsedKey]);
+  }, [
+    activeLevel,
+    activeModules,
+    coloredByModules,
+    levelModules,
+    moduleFlows,
+    parsedKey,
+  ]);
 
   useLayoutEffect(() => {
     positionHoverCard();
@@ -1320,13 +1674,7 @@ function NetworkPreviewImpl({
       return;
     }
 
-    const node = findNearestNode(event.clientX, event.clientY);
-    const nextHover = node
-      ? { node, x: event.clientX, y: event.clientY }
-      : null;
-    hoverRef.current = nextHover;
-    setHover(nextHover);
-    requestDraw();
+    scheduleHoverUpdate(event.clientX, event.clientY);
   };
 
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1342,6 +1690,7 @@ function NetworkPreviewImpl({
     draggingRef.current = node;
     event.currentTarget.setPointerCapture(event.pointerId);
     simulationRef.current?.alpha(0.45).alphaTarget(0.18).restart();
+    requestDraw();
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1354,6 +1703,7 @@ function NetworkPreviewImpl({
     draggingRef.current = null;
     event.currentTarget.releasePointerCapture(event.pointerId);
     simulationRef.current?.alpha(0.35).alphaTarget(0).restart();
+    requestDraw();
   };
 
   const statusText =
@@ -1408,6 +1758,11 @@ function NetworkPreviewImpl({
         onDoubleClick={() => fitToGraph()}
         onPointerDown={onPointerDown}
         onPointerLeave={() => {
+          if (hoverFrameRef.current) {
+            window.cancelAnimationFrame(hoverFrameRef.current);
+            hoverFrameRef.current = 0;
+          }
+          pendingHoverPointRef.current = null;
           hoverRef.current = null;
           setHover(null);
           requestDraw();
@@ -1418,6 +1773,7 @@ function NetworkPreviewImpl({
           cursor: draggingRef.current ? "grabbing" : hover ? "grab" : "move",
           display: "block",
           height: "100%",
+          opacity: initialLayoutPending ? 0 : 1,
           touchAction: "none",
           width: "100%",
         }}
@@ -1538,7 +1894,7 @@ function NetworkPreviewImpl({
         </Button>
       </HStack>
 
-      {loadingState && (
+      {(loadingState || initialLayoutPending) && (
         <HStack
           bg="whiteAlpha.700"
           color="gray.700"
@@ -1555,12 +1911,14 @@ function NetworkPreviewImpl({
           <Text fontSize="sm" fontWeight={600} mb={0}>
             {loadingState === "running"
               ? "Running Infomap…"
-              : "Loading network…"}
+              : loadingState === "loading"
+                ? "Loading network…"
+                : `Preparing layout ${Math.round(initialLayoutProgress * 100)}%`}
           </Text>
         </HStack>
       )}
 
-      {parsed.status !== "ok" && !loadingState && (
+      {parsed.status !== "ok" && !loadingState && !initialLayoutPending && (
         <Box
           bg="whiteAlpha.900"
           borderWidth="1px"
@@ -1637,7 +1995,7 @@ function NetworkPreviewImpl({
                       borderRadius="full"
                       mr={1.5}
                       verticalAlign="middle"
-                      bg={moduleColor(slice.moduleId)}
+                      bg={moduleColorFor(slice.moduleId)}
                     />
                     Module {slice.moduleId} · {share}%
                   </Text>
