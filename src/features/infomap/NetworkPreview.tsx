@@ -176,9 +176,7 @@ function finestLevelModuleForNode(
   return path.length > 0 ? path.join(":") : undefined;
 }
 
-function countPositiveModuleFlows(
-  flows: { module: number; flow: number }[],
-) {
+function countPositiveModuleFlows(flows: { module: number; flow: number }[]) {
   let count = 0;
   for (const flow of flows) {
     if (flow.flow > 0) count += 1;
@@ -270,7 +268,8 @@ function getLinkLayoutKind(
 ): LinkLayoutKind {
   const sourceModule = modulesByNode.get(link.source.id);
   const targetModule = modulesByNode.get(link.target.id);
-  if (sourceModule === undefined || targetModule === undefined) return "neutral";
+  if (sourceModule === undefined || targetModule === undefined)
+    return "neutral";
   return sourceModule === targetModule ? "intra" : "inter";
 }
 
@@ -900,7 +899,9 @@ function NetworkPreviewImpl({
         )
       : new Map<string, ModuleId>();
     const previousSignature = layoutModulesSignatureRef.current;
-    const nextSignature = modular ? layoutModulesSignature(graph, modulesByNode) : "";
+    const nextSignature = modular
+      ? layoutModulesSignature(graph, modulesByNode)
+      : "";
     const layoutChanged = previousSignature !== nextSignature;
     if (!layoutChanged) {
       if (restart) simulation.stop();
