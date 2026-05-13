@@ -5,8 +5,6 @@ year: 2015
 journal: "Phys Rev X 5, 011027 (2015)"
 doi: "http://dx.doi.org/10.1103/PhysRevX.5.011027"
 arxiv: "1408.2925"
-cites:
-  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
 figure:
   caption: "FIG. 1 Modular flow on a schematic multilayer network. (a) A schematic multilayer network with physical nodes in three layers. (b) A random walker on the multilayer network moving between the physical nodes in each layer. (c) The three layers represented as a multiplex network with physical nodes in black and state nodes in blue, red, and orange. (d) A random walker on the multiplex network moving between the state nodes. While the random walker moves according to the weights between the state nodes, only the physical nodes are considered to be observables, as illustrated by the sequence of physical nodes that the random walker has visited."
 ---

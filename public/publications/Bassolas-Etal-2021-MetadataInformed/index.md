@@ -5,14 +5,6 @@ year: 2022
 journal: "Sci. Adv. 8, 43 (2022)"
 doi: "https://doi.org/10.1126/sciadv.abn7558"
 arxiv: "2111.05158"
-cites:
-  - Rosvall-Bergstrom-2008-Maps-of-information-flow
-  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
-  - Lambiotte-Rosvall-2012-Smart-teleportation
-  - Kheirkhahzadeh-Etal-2016-Markovtimes
-  - Peixoto-Rosvall-2017-DynamicCommunityStructures
-  - Emmons-Etal-2019-MetaDataMapEquation
-  - Blocker-Etal-2020-BipartiteMapEquation
 links:
   - label: "Data"
     href: "https://github.com/mapequation/metadata-informed-community-detection-data"

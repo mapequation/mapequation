@@ -6,27 +6,6 @@ date: "2026-01-23"
 journal: "Journal of Physics: Complexity (2026)"
 doi: "https://doi.org/10.1088/2632-072X/ae35bb"
 arxiv: "2304.05775"
-cites:
-  - Rosvall-Bergstrom-2008-Maps-of-information-flow
-  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
-  - Esquivel-Rosvall-2011-Overlapping
-  - Lambiotte-Rosvall-2012-Smart-teleportation
-  - Kheirkhahzadeh-Etal-2016-Markovtimes
-  - Persson-Etal-2016-SparseMarkovMaps
-  - Edler-Etal-2017-Bioregions
-  - Edler-Etal-2017-MappingHigherOrder
-  - Peixoto-Rosvall-2017-DynamicCommunityStructures
-  - Aslak-Etal-2017-IntermittentCommunities
-  - Calatayud-Etal-2019-SolutionLandscape
-  - Eriksson-Etal-2020-MappingHypergraphs
-  - Farage-Etal-2021-Ecological-Networks
-  - Neuman-Etal-2022-CrossValidation
-  - Bassolas-Etal-2021-MetadataInformed
-  - Blocker-Etal-2022-MapEquationCentrality
-  - Blocker-Etal-2022-MapEquationSimilarity
-  - Kirkley-Etal-2023-ModalNetworks
-  - Holmgren-Etal-2023-HigherOrderChange
-  - Lindstrom-Etal-2025-LinkPrediction
 featured: true
 links:
   - { label: "Notebooks", href: "https://github.com/mapequation/biased-random-walks" }

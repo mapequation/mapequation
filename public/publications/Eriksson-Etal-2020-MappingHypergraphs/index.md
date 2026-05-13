@@ -5,25 +5,11 @@ year: 2021
 journal: "Comm. Phys. 4, 133 (2021)"
 doi: "https://doi.org/10.1038/s42005-021-00634-z"
 arxiv: "2101.00656"
-cites:
-  - Rosvall-Bergstrom-2008-Maps-of-information-flow
-  - Lambiotte-Rosvall-2012-Smart-teleportation
-  - Domenico-Etal-2015-Multiplex
-  - Kawamoto-Etal-2015-Resolutionlimit
-  - Kheirkhahzadeh-Etal-2016-Markovtimes
-  - Edler-Etal-2017-Bioregions
-  - Edler-Etal-2017-MappingHigherOrder
-  - Aslak-Etal-2017-IntermittentCommunities
-  - Calatayud-Etal-2019-SolutionLandscape
-  - Emmons-Etal-2019-MetaDataMapEquation
-  - Blocker-Etal-2020-BipartiteMapEquation
-  - Smiljanic-Etal-2020-BayesianMapEquation
-  - Farage-Etal-2021-Ecological-Networks
 links:
   - label: "Code & data"
     href: "https://github.com/mapequation/mapping-hypergraphs"
 figure:
-  caption: "FIG. A schematic hypergraph represented with three types of networks. (a) The schematic hypergraph with weighted hyperedges and hyperedge-dependent node weights. Thin borders for weight 1 and thick borders for weight 3. A lazy random walk on the schematic hypergraph represented on: (b) a bipartite network, (c) a unipartite network, and (d) a multilevel network. The colours indicate optimised module assignments, in (d) for hyperedge-similarity walks."
+  caption: "A schematic hypergraph represented with three types of networks. (a) The schematic hypergraph with weighted hyperedges and hyperedge-dependent node weights. Thin borders for weight 1 and thick borders for weight 3. A lazy random walk on the schematic hypergraph represented on: (b) a bipartite network, (c) a unipartite network, and (d) a multilevel network. The colours indicate optimised module assignments, in (d) for hyperedge-similarity walks."
 ---
 
 Hypergraphs offer an explicit formalism to describe multibody interactions in complex systems. To connect dynamics and function in systems with these higher-order interactions, network scientists have generalised random-walk models to hypergraphs and studied the multibody effects on flow-based centrality measures. But mapping the large-scale structure of those flows requires effective community detection methods. We derive unipartite, bipartite, and multilayer network representations of hypergraph flows and explore how they and the underlying random-walk model change the number, size, depth, and overlap of identified multilevel communities. These results help researchers choose the appropriate modelling approach when mapping flows on hypergraphs.

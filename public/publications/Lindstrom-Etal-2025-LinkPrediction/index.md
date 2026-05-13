@@ -6,26 +6,6 @@ date: "2025-05-22"
 journal: "Physical Review E 111, 054314 (2025)"
 doi: "https://doi.org/10.1103/PhysRevE.111.054314"
 arxiv: "2410.08777"
-cites:
-  - Rosvall-Bergstrom-2008-Maps-of-information-flow
-  - Rosvall-Axelsson-Bergstrom-2009-Map-equation
-  - Lambiotte-Rosvall-2012-Smart-teleportation
-  - Rosvall-Etal-2014-Memory
-  - Kawamoto-Etal-2015-Resolutionlimit
-  - Edler-Etal-2017-Bioregions
-  - Edler-Etal-2017-MappingHigherOrder
-  - Aslak-Etal-2017-IntermittentCommunities
-  - Blocker-Etal-2020-BipartiteMapEquation
-  - Smiljanic-Etal-2020-BayesianMapEquation
-  - Eriksson-Etal-2020-MappingHypergraphs
-  - Farage-Etal-2021-Ecological-Networks
-  - Edler-Etal-2022-VariableMarkov
-  - Neuman-Etal-2022-CrossValidation
-  - Bassolas-Etal-2021-MetadataInformed
-  - Blocker-Etal-2022-MapEquationCentrality
-  - Blocker-Etal-2022-MapEquationSimilarity
-  - Holmgren-Etal-2023-HigherOrderChange
-  - Neuman-Etal-2025-BayesianClustering
 featured: true
 links:
   - { label: "Code", href: "https://github.com/mapequation/bayesian-link-prediction" }

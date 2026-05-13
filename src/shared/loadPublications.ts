@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 import { marked } from "marked";
@@ -16,7 +16,6 @@ const publicationSchema = z.object({
   journal: z.string().optional(),
   doi: z.string().url().optional(),
   arxiv: z.string().optional(),
-  cites: z.array(z.string()).optional(),
   pdf: z.string().optional(),
   links: z
     .array(z.object({ label: z.string(), href: z.string().url() }))
