@@ -2,6 +2,7 @@
 title: "Map Equation Centrality: A Community-Aware Centrality Score Based on the Map Equation"
 authors: "Christopher Blöcker, Juan Carlos Nieves, Martin Rosvall"
 year: 2022
+date: "2022-07-16"
 journal: "Appl Netw Sci 7, 56 (2022)"
 doi: "https://doi.org/10.1007/s41109-022-00477-9"
 arxiv: "2201.12590"

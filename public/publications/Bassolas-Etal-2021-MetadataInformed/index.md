@@ -2,6 +2,7 @@
 title: "Mapping nonlocal relationships between metadata and network structure with metadata-dependent encoding of random walks"
 authors: "Aleix Bassolas, Anton Holmgren, Antoine Marot, Martin Rosvall, Vincenzo Nicosia"
 year: 2022
+date: "2022-10-22"
 journal: "Sci. Adv. 8, 43 (2022)"
 doi: "https://doi.org/10.1126/sciadv.abn7558"
 arxiv: "2111.05158"

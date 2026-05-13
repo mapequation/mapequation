@@ -2,6 +2,7 @@
 title: "Mapping flows on weighted and directed networks with incomplete observations"
 authors: "Jelena Smiljanić, Christopher Blöcker, Daniel Edler, Martin Rosvall"
 year: 2021
+date: "2021-12-10"
 journal: "J. Comp. Net. 9, 6 (2021)"
 doi: "https://doi.org/10.1093/comnet/cnab044"
 arxiv: "2106.14798"

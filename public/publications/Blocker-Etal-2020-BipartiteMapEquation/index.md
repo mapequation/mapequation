@@ -2,6 +2,7 @@
 title: "Mapping flows on bipartite networks"
 authors: "Christopher Blöcker, Martin Rosvall"
 year: 2020
+date: "2020-11-11"
 journal: "Phys. Rev. E 102, 052305 (2020)"
 doi: "https://doi.org/10.1103/PhysRevE.102.052305"
 arxiv: "2007.01666"

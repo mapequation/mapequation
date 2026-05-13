@@ -2,6 +2,7 @@
 title: "Flow-based community detection in hypergraphs"
 authors: "Anton Eriksson, Timoteo Carletti, Renaud Lambiotte, Alexis Rojas, and Martin Rosvall"
 year: 2022
+date: "2022-04-27"
 journal: "Higher-Order Systems. Understanding Complex Systems. Springer, Cham."
 doi: "https://doi.org/10.1007/978-3-030-91374-8_4"
 arxiv: "2105.04389"
