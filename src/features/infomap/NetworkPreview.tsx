@@ -60,38 +60,6 @@ type ModuleSlice = { moduleId: ModuleId; flow: number };
 
 const labelStrokeWidth = 4;
 
-function cubicBezier(
-  progress: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-) {
-  const x = Math.max(0, Math.min(1, progress));
-  let lower = 0;
-  let upper = 1;
-  let t = x;
-  for (let i = 0; i < 8; i += 1) {
-    const inverseT = 1 - t;
-    const estimate =
-      3 * inverseT * inverseT * t * x1 + 3 * inverseT * t * t * x2 + t * t * t;
-    if (estimate < x) {
-      lower = t;
-    } else {
-      upper = t;
-    }
-    t = (lower + upper) / 2;
-  }
-  const inverseT = 1 - t;
-  return (
-    3 * inverseT * inverseT * t * y1 + 3 * inverseT * t * t * y2 + t * t * t
-  );
-}
-
-function easeInOut(progress: number) {
-  return cubicBezier(progress, 0.42, 0, 0.58, 1);
-}
-
 function LevelGranularityIcon({ fine }: { fine?: boolean }) {
   return (
     <Box aria-hidden="true" color="fg.muted" lineHeight={0}>
@@ -1776,7 +1744,6 @@ function NetworkPreviewImpl({
     context.lineJoin = "round";
     context.lineCap = "butt";
     context.lineWidth = labelStrokeWidth;
-    const centerLabelProgress = easeInOut((zoomLevel - 2.5) / 1);
     const skipNumeric = graph.nodes.length > 60;
     const maxFlow = graph.nodes[0]?.flow ?? 1;
     const minLabelFont = 10;
@@ -1799,11 +1766,23 @@ function NetworkPreviewImpl({
       const t = Math.sqrt(Math.max(0, node.flow) / Math.max(maxFlow, 1e-9));
       return minLabelFont + (maxLabelFont - minLabelFont) * t;
     };
+    const clamp = (value: number, min: number, max: number) =>
+      Math.max(min, Math.min(max, value));
+    const labelCenterProgress = (node: SimNode, textWidth: number) => {
+      const fitRatio = 0.8;
+      const padding = 2;
+      const fitZoom =
+        (textWidth + padding) / Math.max(node.radius * 2 * fitRatio, 1);
+      const startZoom = clamp(fitZoom - 1.05, 1.3, 3.4);
+      const endZoom = clamp(fitZoom + 0.5, 3.0, 4.0);
+      return clamp((zoomLevel - startZoom) / (endZoom - startZoom), 0, 1);
+    };
     const labelLeftX = (node: SimNode, textWidth: number) => {
       const sx = transformRef.current.x + (node.x ?? 0) * zoomLevel;
       const outsideX = sx + Math.max(6, node.radius * zoomLevel + 4);
       const centeredX = sx - textWidth / 2;
-      return outsideX + (centeredX - outsideX) * centerLabelProgress;
+      const centerProgress = labelCenterProgress(node, textWidth);
+      return outsideX + (centeredX - outsideX) * centerProgress;
     };
     const overlapsLabel = (
       left: number,
