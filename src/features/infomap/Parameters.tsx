@@ -10,9 +10,9 @@ import {
 } from "@chakra-ui/react";
 import { Select } from "chakra-react-select";
 import type { LabelHTMLAttributes, MouseEvent, Ref } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { LuMinus, LuPlus, LuSearch } from "react-icons/lu";
+import { LuMinus, LuPlus, LuSearch, LuX } from "react-icons/lu";
 import useStore from "../../state";
 import type { InfomapParameter } from "../../state/types";
 
@@ -98,32 +98,21 @@ function ToggleSwitch({
   ariaLabel: string;
 }) {
   return (
-    <label
-      htmlFor={id}
-      style={{
-        alignItems: "center",
-        cursor: "pointer",
-        display: "inline-flex",
-        justifyContent: "center",
-      }}
+    <Box
+      as="button"
+      id={id}
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      onClick={onChange}
+      bg="transparent"
+      border={0}
+      p={0}
+      cursor="pointer"
+      display="inline-flex"
+      alignItems="center"
+      justifyContent="center"
     >
-      <input
-        id={id}
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        aria-label={ariaLabel}
-        style={{
-          border: 0,
-          clip: "rect(0 0 0 0)",
-          height: "1px",
-          margin: "-1px",
-          overflow: "hidden",
-          padding: 0,
-          position: "absolute",
-          width: "1px",
-        }}
-      />
       <Box
         aria-hidden="true"
         bg={checked ? "blue.500" : "gray.300"}
@@ -145,7 +134,7 @@ function ToggleSwitch({
           w="0.875rem"
         />
       </Box>
-    </label>
+    </Box>
   );
 }
 
@@ -424,7 +413,7 @@ const ParameterGroup = ({
     match === "name" ? 0 : match === "description" ? 1 : 2;
   const params = store.params
     .getParamsForGroup(group)
-    .filter((param) => !param.advanced || advanced)
+    .filter((param) => !param.advanced || advanced || param.active)
     .map((param) => ({ param, match: parameterMatchType(param, query) }))
     .filter((entry) => entry.match !== null)
     .sort((a, b) => {
@@ -521,7 +510,27 @@ export default function Parameters() {
     }
   }, [store.params.getParam]);
 
+  // Remember what `advanced` was when the search began, so we can restore it
+  // when the search is cleared — and never override the user's manual toggle.
+  const prevQueryRef = useRef("");
+  const advancedBeforeSearchRef = useRef<boolean | null>(null);
+
   useEffect(() => {
+    const prevQuery = prevQueryRef.current;
+    prevQueryRef.current = query;
+
+    if (!prevQuery && query) {
+      advancedBeforeSearchRef.current = advanced;
+    }
+
+    if (prevQuery && !query) {
+      if (advancedBeforeSearchRef.current !== null) {
+        setAdvanced(advancedBeforeSearchRef.current);
+        advancedBeforeSearchRef.current = null;
+      }
+      return;
+    }
+
     if (!query) return;
 
     const hasAdvancedMatch = parameterGroups.some((group) =>
@@ -533,6 +542,8 @@ export default function Parameters() {
     if (hasAdvancedMatch) {
       setAdvanced(true);
     }
+    // `advanced` is read only at the empty→non-empty transition; intentionally
+    // not in deps so manual toggles while searching don't get overridden.
   }, [query, store.params.getParamsForGroup]);
 
   const hasResults = parameterGroups.some((group) =>
@@ -540,7 +551,8 @@ export default function Parameters() {
       .getParamsForGroup(group)
       .some(
         (param) =>
-          (!param.advanced || advanced) && parameterMatches(param, query),
+          (!param.advanced || advanced || param.active) &&
+          parameterMatches(param, query),
       ),
   );
 
@@ -566,18 +578,37 @@ export default function Parameters() {
           onChange={(event) => setSearch(event.target.value)}
           onKeyDown={(event) => {
             if (event.key !== "Escape") return;
-            if (search) {
-              event.preventDefault();
-              event.stopPropagation();
-              setSearch("");
-            } else {
-              event.currentTarget.blur();
-            }
+            event.preventDefault();
+            event.stopPropagation();
+            setSearch("");
+            event.currentTarget.blur();
           }}
           pl={9}
+          pr={search ? 9 : 3}
           size="sm"
           bg="white"
         />
+        {search && (
+          <Box
+            as="button"
+            aria-label="Clear search"
+            position="absolute"
+            right={2}
+            top="50%"
+            transform="translateY(-50%)"
+            bg="transparent"
+            border={0}
+            p={1}
+            color="gray.500"
+            cursor="pointer"
+            borderRadius="sm"
+            _hover={{ color: "gray.900", bg: "gray.100" }}
+            zIndex={1}
+            onClick={() => setSearch("")}
+          >
+            <LuX size={14} />
+          </Box>
+        )}
       </Box>
 
       <HStack
