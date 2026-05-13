@@ -96,10 +96,9 @@ const HomePage: NextPage<Props> = ({ recentNews }) => {
         </Stack>
         <Box
           my={8}
-          mx={{ base: "auto", lg: 50 }}
+          mx="auto"
           justifySelf={{ base: "center", lg: "auto" }}
           w="100%"
-          maxW="300px"
         >
           <FlowDemo />
         </Box>
