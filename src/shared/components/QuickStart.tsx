@@ -14,6 +14,7 @@ const syntax = {
   className: "#953800",
   functionName: "#8250df",
   number: "#0550ae",
+  comment: "#6a737d",
 };
 
 export function QuickStart() {
@@ -25,58 +26,62 @@ export function QuickStart() {
         borderWidth="1px"
         borderColor="#d0d7de"
         borderRadius="md"
-        p={4}
-        overflowX="auto"
+        overflow="hidden"
       >
-        <chakra.pre
-          m={0}
-          fontFamily="monospace"
-          fontSize="sm"
-          lineHeight={1.6}
-          whiteSpace="pre"
-          aria-label="Python quick-start"
-          color={syntax.name}
-        >
-          <chakra.span color={syntax.keyword}>import</chakra.span>{" "}
-          <chakra.span color={syntax.name}>networkx</chakra.span>{" "}
-          <chakra.span color={syntax.keyword}>as</chakra.span>{" "}
-          <chakra.span color={syntax.name}>nx</chakra.span>
-          {"\n"}
-          <chakra.span color={syntax.keyword}>from</chakra.span>{" "}
-          <chakra.span color={syntax.name}>infomap</chakra.span>{" "}
-          <chakra.span color={syntax.keyword}>import</chakra.span>{" "}
-          <chakra.span color={syntax.functionName}>
-            find_communities
-          </chakra.span>
-          {"\n"}
-          {"\n"}
-          <chakra.span color={syntax.name}>G</chakra.span>{" "}
-          <chakra.span color={syntax.keyword}>=</chakra.span>{" "}
-          <chakra.span color={syntax.name}>nx</chakra.span>.
-          <chakra.span color={syntax.className}>Graph</chakra.span>([(
-          <chakra.span color={syntax.number}>1</chakra.span>,{" "}
-          <chakra.span color={syntax.number}>2</chakra.span>), (
-          <chakra.span color={syntax.number}>1</chakra.span>,{" "}
-          <chakra.span color={syntax.number}>3</chakra.span>), (
-          <chakra.span color={syntax.number}>2</chakra.span>,{" "}
-          <chakra.span color={syntax.number}>3</chakra.span>), (
-          <chakra.span color={syntax.number}>3</chakra.span>,{" "}
-          <chakra.span color={syntax.number}>4</chakra.span>), (
-          <chakra.span color={syntax.number}>4</chakra.span>,{" "}
-          <chakra.span color={syntax.number}>5</chakra.span>), (
-          <chakra.span color={syntax.number}>4</chakra.span>,{" "}
-          <chakra.span color={syntax.number}>6</chakra.span>), (
-          <chakra.span color={syntax.number}>5</chakra.span>,{" "}
-          <chakra.span color={syntax.number}>6</chakra.span>)])
-          {"\n"}
-          <chakra.span color={syntax.name}>communities</chakra.span>{" "}
-          <chakra.span color={syntax.keyword}>=</chakra.span>{" "}
-          <chakra.span color={syntax.functionName}>
-            find_communities
-          </chakra.span>
-          (<chakra.span color={syntax.name}>G</chakra.span>)
-        </chakra.pre>
-        <Box position="absolute" top={2} right={2}>
+        <Box p={4} overflowX="auto">
+          <chakra.pre
+            m={0}
+            fontFamily="monospace"
+            fontSize="sm"
+            lineHeight={1.6}
+            whiteSpace="pre"
+            aria-label="Python quick-start"
+            color={syntax.name}
+          >
+            <chakra.span color={syntax.keyword}>import</chakra.span>{" "}
+            <chakra.span color={syntax.name}>networkx</chakra.span>{" "}
+            <chakra.span color={syntax.keyword}>as</chakra.span>{" "}
+            <chakra.span color={syntax.name}>nx</chakra.span>
+            {"\n"}
+            <chakra.span color={syntax.keyword}>from</chakra.span>{" "}
+            <chakra.span color={syntax.name}>infomap</chakra.span>{" "}
+            <chakra.span color={syntax.keyword}>import</chakra.span>{" "}
+            <chakra.span color={syntax.functionName}>
+              find_communities
+            </chakra.span>
+            {"\n"}
+            {"\n"}
+            <chakra.span color={syntax.name}>G</chakra.span>{" "}
+            <chakra.span color={syntax.keyword}>=</chakra.span>{" "}
+            <chakra.span color={syntax.name}>nx</chakra.span>.
+            <chakra.span color={syntax.className}>Graph</chakra.span>([(
+            <chakra.span color={syntax.number}>1</chakra.span>,{" "}
+            <chakra.span color={syntax.number}>2</chakra.span>), (
+            <chakra.span color={syntax.number}>1</chakra.span>,{" "}
+            <chakra.span color={syntax.number}>3</chakra.span>), (
+            <chakra.span color={syntax.number}>2</chakra.span>,{" "}
+            <chakra.span color={syntax.number}>3</chakra.span>), (
+            <chakra.span color={syntax.number}>3</chakra.span>,{" "}
+            <chakra.span color={syntax.number}>4</chakra.span>), (
+            <chakra.span color={syntax.number}>4</chakra.span>,{" "}
+            <chakra.span color={syntax.number}>5</chakra.span>), (
+            <chakra.span color={syntax.number}>4</chakra.span>,{" "}
+            <chakra.span color={syntax.number}>6</chakra.span>), (
+            <chakra.span color={syntax.number}>5</chakra.span>,{" "}
+            <chakra.span color={syntax.number}>6</chakra.span>)])
+            {"\n"}
+            <chakra.span color={syntax.name}>communities</chakra.span>{" "}
+            <chakra.span color={syntax.keyword}>=</chakra.span>{" "}
+            <chakra.span color={syntax.functionName}>
+              find_communities
+            </chakra.span>
+            (<chakra.span color={syntax.name}>G</chakra.span>){"\n"}
+            <chakra.span color={syntax.comment}>
+              {`# [{1, 2, 3}, {4, 5, 6}]`}
+            </chakra.span>
+          </chakra.pre>
+        </Box>
+        <Box position="absolute" top={2} right={2} zIndex={1}>
           <CopyButton text={SNIPPET} />
         </Box>
       </Box>

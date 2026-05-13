@@ -40,13 +40,13 @@ export default function AppCard({
             aspectRatio="16 / 9"
             borderRadius="md"
             bg="white"
-            boxShadow="sm"
             borderWidth="1px"
-            borderColor="blackAlpha.100"
+            borderColor="gray.200"
+            boxShadow="0 0 0 1px var(--chakra-colors-gray-200)"
             transition="box-shadow 150ms, border-color 150ms"
-            _groupHover={{
-              boxShadow: "md",
-              borderColor: "rgba(18, 139, 194, 0.4)",
+            _hover={{
+              borderColor: "gray.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-gray-400)",
             }}
             style={{
               background: `white url(${image}) no-repeat ${imagePosition} / ${imageSize}`,

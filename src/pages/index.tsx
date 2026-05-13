@@ -42,9 +42,9 @@ const PORTAL_CARDS = [
     description:
       "Find method papers, software citations, surveys, and examples to cite.",
     image:
-      "/publications/Smiljanic-Etal-2026-MapEquationSurvey/fig-flow-mapping.svg",
-    imagePosition: "top right",
-    imageSize: "112%",
+      "/publications/Rosvall-Bergstrom-2008-Maps-of-information-flow/science2004.svg",
+    imagePosition: "bottom right",
+    imageSize: "120%",
   },
 ];
 
@@ -118,13 +118,13 @@ const HomePage: NextPage<Props> = ({ recentNews }) => {
                   aspectRatio="16 / 10"
                   borderRadius="md"
                   bg="white"
-                  boxShadow="sm"
                   borderWidth="1px"
-                  borderColor="blackAlpha.100"
-                  transition="all 150ms"
-                  _groupHover={{
-                    boxShadow: "md",
-                    borderColor: "rgba(18, 139, 194, 0.4)",
+                  borderColor="gray.200"
+                  boxShadow="0 0 0 1px var(--chakra-colors-gray-200)"
+                  transition="box-shadow 150ms, border-color 150ms"
+                  _hover={{
+                    borderColor: "gray.400",
+                    boxShadow: "0 0 0 1px var(--chakra-colors-gray-400)",
                   }}
                   style={{
                     background: `white url(${card.image}) no-repeat ${card.imagePosition} / ${card.imageSize ?? "cover"}`,

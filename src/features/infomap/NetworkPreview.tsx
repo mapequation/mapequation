@@ -58,6 +58,73 @@ function hasMatchingModules(
 
 type ModuleSlice = { moduleId: ModuleId; flow: number };
 
+const labelStrokeWidth = 4;
+
+function cubicBezier(
+  progress: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+) {
+  const x = Math.max(0, Math.min(1, progress));
+  let lower = 0;
+  let upper = 1;
+  let t = x;
+  for (let i = 0; i < 8; i += 1) {
+    const inverseT = 1 - t;
+    const estimate =
+      3 * inverseT * inverseT * t * x1 + 3 * inverseT * t * t * x2 + t * t * t;
+    if (estimate < x) {
+      lower = t;
+    } else {
+      upper = t;
+    }
+    t = (lower + upper) / 2;
+  }
+  const inverseT = 1 - t;
+  return (
+    3 * inverseT * inverseT * t * y1 + 3 * inverseT * t * t * y2 + t * t * t
+  );
+}
+
+function easeInOut(progress: number) {
+  return cubicBezier(progress, 0.42, 0, 0.58, 1);
+}
+
+function LevelGranularityIcon({ fine }: { fine?: boolean }) {
+  return (
+    <Box aria-hidden="true" color="fg.muted" lineHeight={0}>
+      <svg
+        aria-hidden="true"
+        focusable="false"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+      >
+        {fine ? (
+          <>
+            <circle cx="4" cy="4" fill="currentColor" r="2" />
+            <circle cx="12" cy="4" fill="currentColor" r="2" />
+            <circle cx="8" cy="8" fill="currentColor" r="2" />
+            <circle cx="4" cy="12" fill="currentColor" r="2" />
+            <circle cx="12" cy="12" fill="currentColor" r="2" />
+          </>
+        ) : (
+          <circle
+            cx="8"
+            cy="8"
+            fill="none"
+            r="5"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+        )}
+      </svg>
+    </Box>
+  );
+}
+
 function computeModuleCentroids(
   nodes: { id: string; x?: number; y?: number }[],
   moduleFlows?: Map<number, { module: number; flow: number }[]>,
@@ -137,6 +204,48 @@ function nodeModuleSlices(
   const moduleId = modules.get(physicalId);
   if (moduleId !== undefined) return [{ moduleId, flow: 1 }];
   return [];
+}
+
+function selectedHoverModuleIds(
+  node: SimNode,
+  point: { x: number; y: number },
+  nodes: SimNode[],
+  modules: Map<number, ModuleId>,
+  moduleFlows?: Map<number, { module: number; flow: number }[]>,
+): ModuleId[] | undefined {
+  const slices = nodeModuleSlices(node, modules, moduleFlows);
+  if (slices.length <= 1) return undefined;
+
+  const nx = node.x ?? 0;
+  const ny = node.y ?? 0;
+  const dx = point.x - nx;
+  const dy = point.y - ny;
+  const distance = Math.hypot(dx, dy);
+  if (distance > node.radius) return undefined;
+  if (distance <= node.radius * 0.5) {
+    return slices.map((slice) => slice.moduleId);
+  }
+
+  const total = slices.reduce((acc, slice) => acc + slice.flow, 0) || 1;
+  const dominant = slices[0];
+  const centroid = computeModuleCentroids(nodes, moduleFlows, modules).get(
+    dominant.moduleId,
+  );
+  let targetAngle = -Math.PI / 2;
+  if (centroid && (centroid.x !== nx || centroid.y !== ny)) {
+    targetAngle = Math.atan2(centroid.y - ny, centroid.x - nx);
+  }
+  const dominantWidth = (dominant.flow / total) * Math.PI * 2;
+  const startAngle = targetAngle - dominantWidth / 2;
+  const relativeAngle =
+    (((Math.atan2(dy, dx) - startAngle) % (Math.PI * 2)) + Math.PI * 2) %
+    (Math.PI * 2);
+  let cursor = 0;
+  for (const slice of slices) {
+    cursor += (slice.flow / total) * Math.PI * 2;
+    if (relativeAngle <= cursor) return [slice.moduleId];
+  }
+  return [slices[slices.length - 1].moduleId];
 }
 
 function layoutModuleForNode(
@@ -315,6 +424,7 @@ type Graph = {
 
 type HoverState = {
   node: SimNode;
+  moduleIds?: ModuleId[];
   x: number;
   y: number;
 } | null;
@@ -473,10 +583,12 @@ function sharedPrefixLength(a: ModuleId[], b: ModuleId[]) {
 const arrowStride = 7;
 let arrowFloats = new Float32Array(0);
 let arrowColors: string[] = [];
+let arrowActive: boolean[] = [];
 function ensureArrowBuffers(capacity: number) {
   if (arrowFloats.length / arrowStride < capacity) {
     arrowFloats = new Float32Array(capacity * arrowStride);
     arrowColors = new Array(capacity);
+    arrowActive = new Array(capacity);
   }
 }
 
@@ -704,7 +816,7 @@ function renderForExport(
   ctx.textAlign = "left";
   ctx.lineJoin = "round";
   ctx.lineCap = "butt";
-  ctx.lineWidth = 4 / scale;
+  ctx.lineWidth = (labelStrokeWidth * 4) / 3 / scale;
   for (const node of graph.nodes) {
     const fontSize = Math.max(10, node.radius * 0.95);
     const slices = coloredByModules
@@ -746,7 +858,6 @@ function NetworkPreviewImpl({
   directed = false,
   levelModules,
   loadingState = null,
-  lockedLevelLabel,
   moduleSource = "latest Infomap result",
   networkName,
   modules,
@@ -759,7 +870,6 @@ function NetworkPreviewImpl({
   directed?: boolean;
   levelModules?: Map<number, ModuleMap>;
   loadingState?: "loading" | "running" | null;
-  lockedLevelLabel?: string;
   moduleSource?: string;
   networkName?: string;
   modules: ModuleMap;
@@ -998,8 +1108,8 @@ function NetworkPreviewImpl({
       : levelLocked
         ? selectedLevel
         : level;
-  const displayLevel = levelLocked ? selectedLevel : activeLevel;
-  const sliderLevel = displayLevel && displayLevel > 0 ? displayLevel : 1;
+  const sliderLevel = activeLevel && activeLevel > 0 ? activeLevel : 1;
+  const levelValueLabel = `${sliderLevel}/${moduleLevelCount}`;
   const activeModules = levelModules?.get(activeLevel ?? 1) ?? modules;
   const coloredByModules =
     parsed.status === "ok" && hasMatchingModules(parsed.nodes, activeModules);
@@ -1095,12 +1205,36 @@ function NetworkPreviewImpl({
     return nearest;
   };
 
+  const hoverModuleIdsFor = (node: SimNode, point: { x: number; y: number }) =>
+    coloredByModules
+      ? selectedHoverModuleIds(
+          node,
+          point,
+          graphRef.current?.nodes ?? [],
+          activeModules,
+          moduleFlowsRef.current,
+        )
+      : undefined;
+
+  const equalModuleIds = (a?: ModuleId[], b?: ModuleId[]) => {
+    if (!a || !b) return a === b;
+    if (a.length !== b.length) return false;
+    return a.every((id, index) => id === b[index]);
+  };
+
   const updateHoverAt = (clientX: number, clientY: number) => {
     const node = findNearestNode(clientX, clientY);
     const previousHover = hoverRef.current;
     if (node) {
-      if (previousHover?.node === node) return;
-      const nextHover = { node, x: clientX, y: clientY };
+      const point = screenToWorld(clientX, clientY);
+      const moduleIds = hoverModuleIdsFor(node, point);
+      if (
+        previousHover?.node === node &&
+        equalModuleIds(previousHover.moduleIds, moduleIds)
+      ) {
+        return;
+      }
+      const nextHover = { node, moduleIds, x: clientX, y: clientY };
       hoverRef.current = nextHover;
       setHover(nextHover);
       requestDraw();
@@ -1299,13 +1433,19 @@ function NetworkPreviewImpl({
     const currentColoredByModules = coloredByModulesRef.current;
     const currentModuleFlows = moduleFlowsRef.current;
     const hoveredModuleIds =
-      hovered && currentColoredByModules && currentModuleFlows
-        ? new Set(
-            nodeModuleSlices(hovered, currentModules, currentModuleFlows).map(
-              (slice) => slice.moduleId,
-            ),
-          )
-        : null;
+      hoverRef.current?.moduleIds && hoverRef.current.moduleIds.length > 0
+        ? new Set(hoverRef.current.moduleIds)
+        : hovered && currentColoredByModules && currentModuleFlows
+          ? new Set(
+              nodeModuleSlices(hovered, currentModules, currentModuleFlows).map(
+                (slice) => slice.moduleId,
+              ),
+            )
+          : null;
+    const hoveredSliceModuleId =
+      hoveredModuleIds && hoveredModuleIds.size === 1
+        ? [...hoveredModuleIds][0]
+        : undefined;
     const focusStrengthFor = (node: SimNode) => {
       if (!hovered) return 1;
       if (node.id === hovered.id) return 1;
@@ -1336,7 +1476,7 @@ function NetworkPreviewImpl({
     const nodeColorWithFocus = (color: string, focus: number) =>
       hovered ? mixHexColors(color, neutralNode, (1 - focus) * 0.72) : color;
     const labelColorWithFocus = (color: string, focus: number) =>
-      hovered ? mixHexColors(color, "#A0AEC0", (1 - focus) * 0.6) : color;
+      hovered ? mixHexColors(color, "#A0AEC0", (1 - focus) * 0.85) : color;
 
     const showArrows = directedRef.current;
     const zoomLevel = transformRef.current.k;
@@ -1352,6 +1492,24 @@ function NetworkPreviewImpl({
       x < viewLeft || x > viewRight || y < viewTop || y > viewBottom;
     ensureArrowBuffers(graph.links.length);
     let arrowCount = 0;
+    const inactiveLinks: Array<{
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+      stroke: string;
+      width: number;
+      arrowIndex?: number;
+    }> = [];
+    const activeLinks: typeof inactiveLinks = [];
+    const drawLink = (link: (typeof inactiveLinks)[number]) => {
+      context.beginPath();
+      context.moveTo(link.startX, link.startY);
+      context.lineTo(link.endX, link.endY);
+      context.strokeStyle = link.stroke;
+      context.lineWidth = link.width;
+      context.stroke();
+    };
 
     for (const link of graph.links) {
       if (link.width < minVisibleWidthWorld) break;
@@ -1369,6 +1527,13 @@ function NetworkPreviewImpl({
         ? link.sharedModule
         : undefined;
       const intraModule = sharedModule !== undefined;
+      const selectedModuleLink =
+        hoveredModuleIds &&
+        sharedModule !== undefined &&
+        hoveredModuleIds.has(sharedModule);
+      const activeLink =
+        hovered !== null &&
+        (hoveredModuleIds ? selectedModuleLink === true : isConnected);
       const directedLink = showArrows || link.directed;
       const baseStroke =
         sharedModule !== undefined
@@ -1377,22 +1542,35 @@ function NetworkPreviewImpl({
       const linkFocus =
         hovered === null
           ? 1
-          : isConnected
-            ? Math.max(
-                focusStrengthFor(link.source),
-                focusStrengthFor(link.target),
-              )
-            : Math.min(
-                focusStrengthFor(link.source),
-                focusStrengthFor(link.target),
-              );
+          : hoveredModuleIds
+            ? selectedModuleLink
+              ? 0.95
+              : Math.min(
+                  focusStrengthFor(link.source),
+                  focusStrengthFor(link.target),
+                )
+            : isConnected
+              ? Math.max(
+                  focusStrengthFor(link.source),
+                  focusStrengthFor(link.target),
+                )
+              : Math.min(
+                  focusStrengthFor(link.source),
+                  focusStrengthFor(link.target),
+                );
       const baseOpacity = intraModule ? 0.42 : 0.26;
       const linkOpacity = hovered
-        ? isConnected
-          ? intraModule
-            ? 0.62
-            : 0.55
-          : baseOpacity * (0.25 + 0.55 * linkFocus)
+        ? hoveredModuleIds
+          ? selectedModuleLink
+            ? intraModule
+              ? 0.62
+              : 0.55
+            : baseOpacity * (0.25 + 0.55 * linkFocus)
+          : isConnected
+            ? intraModule
+              ? 0.62
+              : 0.55
+            : baseOpacity * (0.25 + 0.55 * linkFocus)
         : baseOpacity;
       const stroke = fadeToBackgroundCached(baseStroke, linkOpacity);
       const lineWidth = link.width;
@@ -1401,6 +1579,7 @@ function NetworkPreviewImpl({
       let endY = ty;
       let startX = sx;
       let startY = sy;
+      let arrowIndex: number | undefined;
       if (directedLink) {
         const dx = tx - sx;
         const dy = ty - sy;
@@ -1451,16 +1630,53 @@ function NetworkPreviewImpl({
             Math.max(lineWidth, link.reverseWidth) * 0.7,
           );
           arrowColors[arrowCount] = stroke;
+          arrowActive[arrowCount] = activeLink;
+          arrowIndex = arrowCount;
           arrowCount += 1;
         }
       }
 
+      const links = activeLink ? activeLinks : inactiveLinks;
+      links.push({
+        startX,
+        startY,
+        endX,
+        endY,
+        stroke,
+        width: lineWidth,
+        arrowIndex,
+      });
+    }
+
+    const drawArrow = (index: number) => {
+      const offset = index * arrowStride;
+      const tipX = arrowFloats[offset];
+      const tipY = arrowFloats[offset + 1];
+      const baseX = arrowFloats[offset + 2];
+      const baseY = arrowFloats[offset + 3];
+      const ux = arrowFloats[offset + 4];
+      const uy = arrowFloats[offset + 5];
+      const halfWidth = arrowFloats[offset + 6];
+      const leftX = baseX - uy * halfWidth;
+      const leftY = baseY + ux * halfWidth;
+      const rightX = baseX + uy * halfWidth;
+      const rightY = baseY - ux * halfWidth;
       context.beginPath();
-      context.moveTo(startX, startY);
-      context.lineTo(endX, endY);
-      context.strokeStyle = stroke;
-      context.lineWidth = lineWidth;
-      context.stroke();
+      context.moveTo(tipX, tipY);
+      context.lineTo(leftX, leftY);
+      context.lineTo(rightX, rightY);
+      context.closePath();
+      context.fillStyle = arrowColors[index];
+      context.fill();
+    };
+
+    for (const link of inactiveLinks) {
+      drawLink(link);
+      if (link.arrowIndex !== undefined) drawArrow(link.arrowIndex);
+    }
+    for (const link of activeLinks) {
+      drawLink(link);
+      if (link.arrowIndex !== undefined) drawArrow(link.arrowIndex);
     }
 
     const minVisibleNodeRadiusWorld = minRenderedNodeRadiusPixels / zoomLevel;
@@ -1499,18 +1715,33 @@ function NetworkPreviewImpl({
         }
         const dominantWidth = (dominant.flow / total) * Math.PI * 2;
         let startAngle = targetAngle - dominantWidth / 2;
+        const selectedSliceModuleId =
+          isHovered && hoverRef.current?.moduleIds?.length === 1
+            ? hoverRef.current.moduleIds[0]
+            : undefined;
         for (const slice of slices) {
           const angle = (slice.flow / total) * Math.PI * 2;
           const endAngle = startAngle + angle;
+          const sliceFocus = hoveredModuleIds
+            ? hoveredModuleIds.has(slice.moduleId)
+              ? 1
+              : 0.15
+            : nodeFocus;
+          const sliceColor = moduleColorFor(slice.moduleId);
           context.beginPath();
           context.moveTo(nx, ny);
           context.arc(nx, ny, node.radius, startAngle, endAngle);
           context.closePath();
-          context.fillStyle = nodeColorWithFocus(
-            moduleColorFor(slice.moduleId),
-            nodeFocus,
-          );
+          context.fillStyle = nodeColorWithFocus(sliceColor, sliceFocus);
           context.fill();
+          if (slice.moduleId === selectedSliceModuleId) {
+            context.beginPath();
+            context.moveTo(nx, ny);
+            context.arc(nx, ny, node.radius * 0.5, startAngle, endAngle);
+            context.closePath();
+            context.fillStyle = nodeColorWithFocus(sliceColor, 0.15);
+            context.fill();
+          }
           startAngle = endAngle;
         }
       } else {
@@ -1530,48 +1761,12 @@ function NetworkPreviewImpl({
       context.beginPath();
       context.arc(nx, ny, node.radius, 0, Math.PI * 2);
       context.lineWidth = nodeStrokeWorld;
-      if (isHovered && slices.length > 1) {
-        const total = slices.reduce((acc, s) => acc + s.flow, 0) || 1;
-        let startAngle = -Math.PI / 2;
-        for (const slice of slices) {
-          const angle = (slice.flow / total) * Math.PI * 2;
-          const endAngle = startAngle + angle;
-          context.beginPath();
-          context.arc(nx, ny, node.radius, startAngle, endAngle);
-          context.strokeStyle = shadeColor(moduleColorFor(slice.moduleId), -86);
-          context.stroke();
-          startAngle = endAngle;
-        }
-      } else {
-        context.strokeStyle = isHovered
-          ? dominantModuleId !== undefined
-            ? shadeColor(moduleColorFor(dominantModuleId), -86)
-            : "#2D3748"
-          : "#FFFFFF";
-        context.stroke();
-      }
-    }
-
-    for (let i = 0; i < arrowCount; i++) {
-      const offset = i * arrowStride;
-      const tipX = arrowFloats[offset];
-      const tipY = arrowFloats[offset + 1];
-      const baseX = arrowFloats[offset + 2];
-      const baseY = arrowFloats[offset + 3];
-      const ux = arrowFloats[offset + 4];
-      const uy = arrowFloats[offset + 5];
-      const halfWidth = arrowFloats[offset + 6];
-      const leftX = baseX - uy * halfWidth;
-      const leftY = baseY + ux * halfWidth;
-      const rightX = baseX + uy * halfWidth;
-      const rightY = baseY - ux * halfWidth;
-      context.beginPath();
-      context.moveTo(tipX, tipY);
-      context.lineTo(leftX, leftY);
-      context.lineTo(rightX, rightY);
-      context.closePath();
-      context.fillStyle = arrowColors[i];
-      context.fill();
+      context.strokeStyle = isHovered
+        ? dominantModuleId !== undefined && slices.length <= 1
+          ? shadeColor(moduleColorFor(dominantModuleId), -86)
+          : "#2D3748"
+        : "#FFFFFF";
+      context.stroke();
     }
 
     context.restore();
@@ -1580,7 +1775,8 @@ function NetworkPreviewImpl({
     context.textAlign = "left";
     context.lineJoin = "round";
     context.lineCap = "butt";
-    context.lineWidth = 3;
+    context.lineWidth = labelStrokeWidth;
+    const centerLabelProgress = easeInOut((zoomLevel - 2.5) / 1);
     const skipNumeric = graph.nodes.length > 60;
     const maxFlow = graph.nodes[0]?.flow ?? 1;
     const minLabelFont = 10;
@@ -1602,6 +1798,12 @@ function NetworkPreviewImpl({
     const labelFontSize = (node: SimNode) => {
       const t = Math.sqrt(Math.max(0, node.flow) / Math.max(maxFlow, 1e-9));
       return minLabelFont + (maxLabelFont - minLabelFont) * t;
+    };
+    const labelLeftX = (node: SimNode, textWidth: number) => {
+      const sx = transformRef.current.x + (node.x ?? 0) * zoomLevel;
+      const outsideX = sx + Math.max(6, node.radius * zoomLevel + 4);
+      const centeredX = sx - textWidth / 2;
+      return outsideX + (centeredX - outsideX) * centerLabelProgress;
     };
     const overlapsLabel = (
       left: number,
@@ -1628,16 +1830,16 @@ function NetworkPreviewImpl({
           ? nodeModuleSlices(node, currentModules, currentModuleFlows)
           : [];
       const labelColor =
-        slices.length > 0
-          ? darkenedModuleColorFor(slices[0].moduleId)
-          : nodeModuleId !== undefined
-            ? darkenedModuleColorFor(nodeModuleId)
-            : "#2D3748";
+        hoveredSliceModuleId !== undefined && focusStrengthFor(node) > 0.5
+          ? darkenedModuleColorFor(hoveredSliceModuleId)
+          : slices.length > 0
+            ? darkenedModuleColorFor(slices[0].moduleId)
+            : nodeModuleId !== undefined
+              ? darkenedModuleColorFor(nodeModuleId)
+              : "#2D3748";
       context.font = `${fontSize}px sans-serif`;
-      const x =
-        transformRef.current.x +
-        (node.x ?? 0) * zoomLevel +
-        Math.max(6, node.radius * zoomLevel + 4);
+      const textWidth = context.measureText(node.label).width;
+      const x = labelLeftX(node, textWidth);
       const y =
         transformRef.current.y + (node.y ?? 0) * zoomLevel - fontSize * 0.1;
       const labelFocus = focusStrengthFor(node);
@@ -1659,10 +1861,10 @@ function NetworkPreviewImpl({
         continue;
       }
       const fontSize = labelFontSize(node);
-      const x = sx + Math.max(6, node.radius * zoomLevel + 4);
       const y = sy - fontSize * 0.1;
       context.font = `${fontSize}px sans-serif`;
       const textWidth = context.measureText(node.label).width;
+      const x = labelLeftX(node, textWidth);
       const padding = 2;
       const left = x - padding;
       const right = x + textWidth + padding;
@@ -2012,7 +2214,11 @@ function NetworkPreviewImpl({
     hover && coloredByModules
       ? nodeModuleSlices(hover.node, activeModules, moduleFlowsRef.current)
       : [];
+  const visibleHoverSlices = hoverSlices.slice(0, 7);
+  const hiddenHoverSliceCount = Math.max(0, hoverSlices.length - 7);
   const hoverModuleTotal = hoverSlices.reduce((sum, s) => sum + s.flow, 0);
+  const activeTooltipModuleId =
+    hover?.moduleIds?.length === 1 ? hover.moduleIds[0] : undefined;
   const hoverPath = useMemo(() => {
     if (!hover || !levelModules) return null;
     const id = Number(hover.node.id);
@@ -2122,18 +2328,25 @@ function NetworkPreviewImpl({
           boxShadow="0 0 0 1px var(--chakra-colors-gray-muted)"
           bottom={3}
           px={1.5}
-          pt={1.5}
-          pb={0}
+          py={1.5}
           position="absolute"
           right={3}
           fontSize="xs"
+          alignItems="center"
+          display="flex"
+          flexDirection="column"
+          gap={1}
+          minW="2.75rem"
         >
-          <Text color="fg" fontWeight={600} mb={1} textAlign="center">
-            {lockedLevelLabel ?? displayLevel}
+          <Text color="fg" fontWeight={600} lineHeight={1} textAlign="center">
+            {levelValueLabel}
           </Text>
+          <Box mt={-1}>
+            <LevelGranularityIcon fine />
+          </Box>
           <Box display="flex" justifyContent="center">
             <input
-              aria-label="Network preview level"
+              aria-label={`Module level ${levelValueLabel}`}
               disabled={levelLocked}
               max={moduleLevelCount}
               min={1}
@@ -2149,14 +2362,7 @@ function NetworkPreviewImpl({
               value={sliderLevel}
             />
           </Box>
-          <Text color="fg.muted" fontSize="2xs" mt={1} textAlign="center">
-            Level
-          </Text>
-          {levelLocked && (
-            <Text color="fg.muted" fontSize="2xs" mt={0.5} textAlign="center">
-              --clu-level
-            </Text>
-          )}
+          <LevelGranularityIcon />
         </Box>
       )}
 
@@ -2264,7 +2470,7 @@ function NetworkPreviewImpl({
           </Text>
           {hoverSlices.length > 1 && (
             <Box mt={1}>
-              {hoverSlices.map((slice) => {
+              {visibleHoverSlices.map((slice) => {
                 const share =
                   hoverModuleTotal > 0
                     ? Math.round((slice.flow / hoverModuleTotal) * 100)
@@ -2272,7 +2478,12 @@ function NetworkPreviewImpl({
                 return (
                   <Text
                     key={String(slice.moduleId)}
-                    color="whiteAlpha.800"
+                    color={
+                      activeTooltipModuleId === undefined ||
+                      activeTooltipModuleId === slice.moduleId
+                        ? "whiteAlpha.800"
+                        : "whiteAlpha.500"
+                    }
                     fontSize="xs"
                     mb={0}
                   >
@@ -2290,6 +2501,11 @@ function NetworkPreviewImpl({
                   </Text>
                 );
               })}
+              {hiddenHoverSliceCount > 0 && (
+                <Text color="whiteAlpha.700" fontSize="xs" mb={0}>
+                  and {hiddenHoverSliceCount} more
+                </Text>
+              )}
             </Box>
           )}
           {hoverPath && (

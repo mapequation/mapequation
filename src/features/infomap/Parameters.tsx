@@ -138,7 +138,6 @@ function ToggleSwitch({
   );
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: param shape varies per control
 const DropdownParameter = ({ param }: { param: any }) => {
   const store = useStore();
 
@@ -200,7 +199,6 @@ const DropdownParameter = ({ param }: { param: any }) => {
   );
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: param shape varies per control
 const InputParameter = ({ param }: { param: any }) => {
   const store = useStore();
 
@@ -223,7 +221,6 @@ const InputParameter = ({ param }: { param: any }) => {
   );
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: param shape varies per control
 const FileInputParameter = ({ param }: { param: any }) => {
   const store = useStore();
 
@@ -283,7 +280,6 @@ const ToggleParameter = ({ param }: { param: InfomapParameter }) => {
   );
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: param shape varies per control
 const IncrementalParameter = ({ param }: { param: any }) => {
   const store = useStore();
   const { value, maxValue, stringValue } = param;

@@ -4,35 +4,13 @@ import { infomapVersion } from "../infomapVersion";
 
 const currentYear = new Date().getFullYear();
 
-const software = {
-  title: "The MapEquation software package",
-  authors: [
-    { first: "Daniel", last: "Edler" },
-    { first: "Anton", last: "Holmgren" },
-    { first: "Martin", last: "Rosvall" },
-  ],
-  url: "https://mapequation.org",
-  year: currentYear,
-  version: infomapVersion,
-};
-
 const softwareBibtex = `@misc{mapequation${currentYear}software,
-  title        = {{${software.title}}},
-  author       = {${software.authors.map((a) => `${a.first} ${a.last}`).join(" and ")}},
-  howpublished = {\\url{${software.url}}},
-  version      = {${software.version}},
-  year         = {${software.year}},
+  title        = {{The MapEquation software package}},
+  author       = {Daniel Edler and Anton Holmgren and Martin Rosvall},
+  howpublished = {\\url{https://mapequation.org}},
+  version      = {${infomapVersion}},
+  year         = {${currentYear}},
 }`;
-
-const softwareRis = `TY  - COMP
-TI  - ${software.title}
-AU  - ${software.authors[0].last}, ${software.authors[0].first}
-AU  - ${software.authors[1].last}, ${software.authors[1].first}
-AU  - ${software.authors[2].last}, ${software.authors[2].first}
-PY  - ${software.year}
-ET  - ${software.version}
-UR  - ${software.url}
-ER  -`;
 
 const paperBibtex = `@article{rosvall2008maps,
   title   = {Maps of random walks on complex networks reveal community structure},
@@ -44,19 +22,6 @@ const paperBibtex = `@article{rosvall2008maps,
   year    = {2008},
   doi     = {10.1073/pnas.0706851105},
 }`;
-
-const paperRis = `TY  - JOUR
-TI  - Maps of random walks on complex networks reveal community structure
-AU  - Rosvall, Martin
-AU  - Bergstrom, Carl T.
-JO  - Proceedings of the National Academy of Sciences
-VL  - 105
-IS  - 4
-SP  - 1118
-EP  - 1123
-PY  - 2008
-DO  - 10.1073/pnas.0706851105
-ER  -`;
 
 type ChipTone = "neutral" | "accent";
 
@@ -122,7 +87,6 @@ function CitationCard({
   title,
   description,
   bibtex,
-  ris,
   links,
 }: {
   id: string;
@@ -132,7 +96,6 @@ function CitationCard({
   title: string;
   description: string;
   bibtex: string;
-  ris: string;
   links?: { label: string; href: string }[];
 }) {
   return (
@@ -180,13 +143,6 @@ function CitationCard({
           size="sm"
           variant="solid"
         />
-        <CopyButton
-          text={ris}
-          label="RIS"
-          copiedLabel="Copied"
-          size="sm"
-          variant="surface"
-        />
         {links?.map((l) => (
           <ExternalLink key={l.href} href={l.href}>
             {l.label}
@@ -223,7 +179,6 @@ export default function HowToCite() {
           title="Maps of random walks on complex networks reveal community structure"
           description="Rosvall, M., & Bergstrom, C. T. — the original paper. Cite this when you describe the map equation method behind Infomap."
           bibtex={paperBibtex}
-          ris={paperRis}
           links={[
             { label: "DOI", href: "https://doi.org/10.1073/pnas.0706851105" },
             {
@@ -240,9 +195,11 @@ export default function HowToCite() {
           title="The MapEquation software package"
           description="Edler, D., Holmgren, A., & Rosvall, M. Cite this when your analysis depends on Infomap as software and the release version matters for reproducibility."
           bibtex={softwareBibtex}
-          ris={softwareRis}
           links={[
-            { label: "mapequation.org", href: "https://mapequation.org" },
+            {
+              label: "Google Scholar",
+              href: "https://scholar.google.com/citations?view_op=view_citation&citation_for_view=IDZlurgAAAAJ:ZeXyd9-uunAC",
+            },
           ]}
         />
       </Stack>

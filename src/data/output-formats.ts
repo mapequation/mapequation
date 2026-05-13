@@ -32,21 +32,21 @@ export const OUTPUT_FORMATS: OutputFormat[] = [
   },
   {
     key: "clu_states",
-    name: "Clu",
+    name: "State clu",
     isStates: true,
     suffix: "_states",
     extension: "clu",
   },
   {
     key: "tree_states",
-    name: "Tree",
+    name: "State tree",
     isStates: true,
     suffix: "_states",
     extension: "tree",
   },
   {
     key: "ftree_states",
-    name: "Ftree",
+    name: "State ftree",
     isStates: true,
     suffix: "_states",
     extension: "ftree",
@@ -81,7 +81,7 @@ export const OUTPUT_FORMATS: OutputFormat[] = [
   },
   {
     key: "newick_states",
-    name: "Newick",
+    name: "State newick",
     isStates: true,
     suffix: "_states",
     extension: "nwk",
@@ -95,7 +95,7 @@ export const OUTPUT_FORMATS: OutputFormat[] = [
   },
   {
     key: "json_states",
-    name: "JSON",
+    name: "State JSON",
     isStates: true,
     suffix: "_states",
     extension: "json",
@@ -103,7 +103,7 @@ export const OUTPUT_FORMATS: OutputFormat[] = [
   { key: "csv", name: "CSV", isStates: false, suffix: "", extension: "csv" },
   {
     key: "csv_states",
-    name: "CSV",
+    name: "State CSV",
     isStates: true,
     suffix: "_states",
     extension: "csv",

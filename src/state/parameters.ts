@@ -214,8 +214,35 @@ export function buildNoInfomapArgs(args: string) {
     .replace("--clu", "")
     .replace("--tree", "")
     .replace("--ftree", "")
-    .replace(/(-o)|(--output)\s(\S+,?)+/, "");
+    .replace(/(?:-o|--output)\s+\S+/g, "");
 
   noInfomapArgs += " --silent --no-infomap -o flow";
   return noInfomapArgs.trim();
+}
+
+export function ensureJsonOutput(args: string) {
+  const outputOption = /(?:^|\s)(-o|--output)\s+(\S+)/g;
+  let foundOutputOption = false;
+
+  const nextArgs = args.replace(outputOption, (full, option, value) => {
+    foundOutputOption = true;
+    const formats = String(value).split(",").filter(Boolean);
+    if (formats.includes("json")) return full;
+
+    const nextFormats = [...formats, "json"].join(",");
+    return full.replace(`${option} ${value}`, `${option} ${nextFormats}`);
+  });
+
+  return foundOutputOption ? nextArgs : `${args} -o json`.trim();
+}
+
+export function argsRequestOutputFormat(args: string, format: string) {
+  const outputOption = /(?:^|\s)(?:-o|--output)\s+(\S+)/g;
+
+  for (const match of args.matchAll(outputOption)) {
+    const formats = match[1]?.split(",").filter(Boolean) ?? [];
+    if (formats.includes(format)) return true;
+  }
+
+  return false;
 }

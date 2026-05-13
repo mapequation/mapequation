@@ -103,111 +103,118 @@ export function parseCluModuleFlows(clu: string): ModuleFlowMap {
   return result;
 }
 
-export function parseModules(output: OutputState) {
-  return parseCluModules(output.clu_states || output.clu);
+type JsonOutputNode = {
+  id?: unknown;
+  flow?: unknown;
+  path?: unknown;
+};
+
+type ParsedJsonOutput = {
+  codelength?: unknown;
+  codeLength?: unknown;
+  nodes?: unknown;
+  numLevels?: unknown;
+};
+
+function parseJsonOutput(output: OutputState): ParsedJsonOutput | null {
+  const json = output.json_states || output.json;
+  if (!json) return null;
+
+  try {
+    const parsed = JSON.parse(json);
+    return parsed && typeof parsed === "object"
+      ? (parsed as ParsedJsonOutput)
+      : null;
+  } catch {
+    return null;
+  }
 }
 
-export function parseModuleFlows(output: OutputState) {
-  return parseCluModuleFlows(output.clu || output.clu_states);
+function jsonNodes(output: OutputState): JsonOutputNode[] {
+  const parsed = parseJsonOutput(output);
+  return Array.isArray(parsed?.nodes) ? (parsed.nodes as JsonOutputNode[]) : [];
 }
 
-export function parseTreeLevelModules(tree: string) {
+function parseJsonModuleFlows(output: OutputState): ModuleFlowMap {
+  const result: ModuleFlowMap = new Map();
+
+  for (const node of jsonNodes(output)) {
+    const id = Number(node.id);
+    const path = Array.isArray(node.path) ? node.path.map(Number) : [];
+    const module = path[0];
+    const flow = Number(node.flow);
+    if (!Number.isFinite(id) || !Number.isFinite(module)) continue;
+
+    const entries = result.get(id) ?? [];
+    const existing = entries.find((entry) => entry.module === module);
+    const finiteFlow = Number.isFinite(flow) ? flow : 1;
+    if (existing) {
+      existing.flow += finiteFlow;
+    } else {
+      entries.push({ module, flow: finiteFlow });
+      result.set(id, entries);
+    }
+  }
+
+  return result;
+}
+
+function parseJsonModules(output: OutputState) {
+  const modules = new Map<number, number>();
+
+  for (const [id, entries] of parseJsonModuleFlows(output)) {
+    let best = entries[0];
+    for (const entry of entries) {
+      if (entry.flow > best.flow) best = entry;
+    }
+    modules.set(id, best.module);
+  }
+
+  return modules;
+}
+
+function parseJsonLevelModules(output: OutputState) {
   const levels = new Map<number, Map<number, string>>();
+  const bestByNodeAndLevel = new Map<
+    string,
+    { flow: number; id: number; level: number; moduleId: string }
+  >();
 
-  for (const line of tree.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (
-      !trimmed ||
-      trimmed.startsWith("#") ||
-      trimmed.startsWith("%") ||
-      trimmed.startsWith("*")
-    ) {
-      continue;
-    }
+  for (const node of jsonNodes(output)) {
+    const id = Number(node.id);
+    const path = Array.isArray(node.path) ? node.path.map(Number) : [];
+    const flow = Number(node.flow);
+    if (!Number.isFinite(id) || path.length < 2) continue;
 
-    const columns = trimmed.split(/\s+/);
-    const path = columns[0];
-    const nodeId = Number(columns.at(-1));
-    if (!/^\d+(?::\d+)+$/.test(path) || !Number.isFinite(nodeId)) {
-      continue;
-    }
-
-    const parts = path.split(":");
-    const moduleDepth = Math.max(1, parts.length - 1);
+    const finiteFlow = Number.isFinite(flow) ? flow : 1;
+    const moduleDepth = Math.max(1, path.length - 1);
     for (let level = 1; level <= moduleDepth; level += 1) {
-      const moduleId = parts.slice(0, level).join(":");
-      const levelModules = levels.get(level) ?? new Map<number, string>();
-      levelModules.set(nodeId, moduleId);
-      levels.set(level, levelModules);
+      const moduleId = path.slice(0, level).join(":");
+      const key = `${id}:${level}`;
+      const previous = bestByNodeAndLevel.get(key);
+      if (!previous || finiteFlow > previous.flow) {
+        bestByNodeAndLevel.set(key, { flow: finiteFlow, id, level, moduleId });
+      }
     }
+  }
+
+  for (const { id, level, moduleId } of bestByNodeAndLevel.values()) {
+    const levelModules = levels.get(level) ?? new Map<number, string>();
+    levelModules.set(id, moduleId);
+    levels.set(level, levelModules);
   }
 
   return levels;
 }
 
 function parseJsonMetadata(output: OutputState) {
-  const json = output.json_states || output.json;
-  if (!json) return { codeLength: null, numLevels: null };
-
-  try {
-    const content = JSON.parse(json) as {
-      codelength?: unknown;
-      codeLength?: unknown;
-      numLevels?: unknown;
-    };
-    const codeLength = Number(content.codelength ?? content.codeLength);
-    const numLevels = Number(content.numLevels);
-    return {
-      codeLength: Number.isFinite(codeLength) ? codeLength : null,
-      numLevels: Number.isFinite(numLevels) ? numLevels : null,
-    };
-  } catch {
-    return { codeLength: null, numLevels: null };
-  }
-}
-
-function parseTextCodeLength(output: OutputState) {
-  const content = [
-    output.tree_states,
-    output.ftree_states,
-    output.tree,
-    output.ftree,
-    output.clu_states,
-    output.clu,
-  ].join("\n");
-  const match = content.match(/#\s*codelength\s+([0-9.eE+-]+)/i);
-  if (!match?.[1]) return null;
-
-  const codeLength = Number(match[1]);
-  return Number.isFinite(codeLength) ? codeLength : null;
-}
-
-function parseTreeLevels(output: OutputState) {
-  const content = [
-    output.tree_states,
-    output.ftree_states,
-    output.tree,
-    output.ftree,
-  ].join("\n");
-  let maxDepth = 0;
-
-  for (const line of content.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (
-      !trimmed ||
-      trimmed.startsWith("#") ||
-      trimmed.startsWith("%") ||
-      trimmed.startsWith("*")
-    ) {
-      continue;
-    }
-
-    const [path] = trimmed.split(/\s+/);
-    if (!/^\d+(?::\d+)+$/.test(path)) continue;
-    maxDepth = Math.max(maxDepth, path.split(":").length);
-  }
-
-  return maxDepth > 0 ? maxDepth : null;
+  const content = parseJsonOutput(output);
+  const codeLength = Number(content?.codelength ?? content?.codeLength);
+  const numLevels = Number(content?.numLevels);
+  return {
+    codeLength: Number.isFinite(codeLength) ? codeLength : null,
+    numLevels: Number.isFinite(numLevels) ? numLevels : null,
+  };
 }
 
 export function applyOutputContent(
@@ -225,14 +232,12 @@ export function applyOutputContent(
         : String(value);
   }
 
-  next.modules = parseModules(next);
-  next.moduleFlows = parseModuleFlows(next);
-  next.levelModules = parseTreeLevelModules(
-    next.tree_states || next.ftree_states || next.tree || next.ftree,
-  );
+  next.modules = parseJsonModules(next);
+  next.moduleFlows = parseJsonModuleFlows(next);
+  next.levelModules = parseJsonLevelModules(next);
   const jsonMetadata = parseJsonMetadata(next);
-  next.codeLength = jsonMetadata.codeLength ?? parseTextCodeLength(next);
-  next.numLevels = jsonMetadata.numLevels ?? parseTreeLevels(next);
+  next.codeLength = jsonMetadata.codeLength;
+  next.numLevels = jsonMetadata.numLevels;
   next.activeKey =
     ([
       "clu",

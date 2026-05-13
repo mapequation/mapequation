@@ -27,6 +27,10 @@ import {
 } from "react-icons/lu";
 import useStore from "../../state";
 import { parseCluModules } from "../../state/output";
+import {
+  argsRequestOutputFormat,
+  ensureJsonOutput,
+} from "../../state/parameters";
 import type { InputFile, InputName } from "../../state/types";
 import Console from "./Console";
 import ExampleNetworksList from "./ExamplesMenu";
@@ -200,7 +204,7 @@ export default function InfomapOnline() {
     if (args) {
       setArgs(args);
     } else {
-      setArgs("--clu --ftree --num-trials 10");
+      setArgs("--clu --tree --num-trials 10");
     }
   }, [store.params.setArgs]);
 
@@ -384,7 +388,7 @@ export default function InfomapOnline() {
       infomap.run({
         network: store.infomapNetwork.content,
         filename: store.infomapNetwork.filename,
-        args: store.params.args,
+        args: ensureJsonOutput(store.params.args),
         files: store.infomapFiles,
       });
     } catch (e) {
@@ -448,12 +452,6 @@ export default function InfomapOnline() {
   const previewSelectedLevel = cluLevelParam.active
     ? Number(cluLevelParam.value)
     : null;
-  const previewLevelLabel =
-    previewSelectedLevel === -1
-      ? "bottom"
-      : previewSelectedLevel !== null
-        ? String(previewSelectedLevel)
-        : undefined;
 
   useEffect(() => {
     setClusterEvaluation({ codeLength: null, numLevels: null });
@@ -526,7 +524,10 @@ export default function InfomapOnline() {
     : inputValue;
   const hasActiveInputValue = Boolean(inputOptions[activeInput].value);
   const consoleContent = infomapOutput.join("\n");
-  const outputFiles = [...physicalFiles, ...stateFiles];
+  const showJsonOutput = argsRequestOutputFormat(params.args, "json");
+  const outputFiles = [...physicalFiles, ...stateFiles].filter(
+    (file) => showJsonOutput || !file.key.startsWith("json"),
+  );
   const runShortcut =
     typeof navigator !== "undefined" &&
     /Mac|iPhone|iPad/.test(navigator.platform)
@@ -805,7 +806,6 @@ export default function InfomapOnline() {
             codeLength={previewCodeLength}
             directed={Boolean(params.getParam("--directed").active)}
             levelModules={previewLevelModules}
-            lockedLevelLabel={previewLevelLabel}
             loadingState={
               isRunning
                 ? "running"
