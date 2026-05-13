@@ -496,7 +496,7 @@ const HowItWorksPage: NextPage = () => {
           <Text color="gray.500" fontSize="sm" mb={2}>
             Research framework
           </Text>
-          <Heading as="h1" size="lg" mb={4} id="HowItWorks">
+          <Heading as="h1" textStyle="h1" mb={4} id="HowItWorks">
             Infomap maps networks by treating flow as a lens
           </Heading>
 

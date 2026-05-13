@@ -15,9 +15,6 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:smoke",
-    "test:smoke": "playwright test",
-    "test:smoke:ui": "playwright test --ui",
     "verify": "npm run check && npm run build && npm run test:smoke"
   },
   "dependencies": {

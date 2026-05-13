@@ -1,7 +1,8 @@
-import { Box, Button, chakra, Flex, Stack, Tabs, Text } from "@chakra-ui/react";
+import { Box, chakra, Flex, Stack, Tabs, Text } from "@chakra-ui/react";
+import { useRouter } from "next/router";
 import type { ElementType } from "react";
-import { useState } from "react";
-import { LuCheck, LuCopy } from "react-icons/lu";
+import { useEffect, useState } from "react";
+import { CopyButton } from "../components/CopyButton";
 
 const TabsRoot = Tabs.Root as ElementType;
 const TabsList = Tabs.List as ElementType;
@@ -9,17 +10,20 @@ const TabsTrigger = Tabs.Trigger as ElementType;
 const TabsContent = Tabs.Content as ElementType;
 
 type InstallOption = {
+  id: string;
   label: string;
   command: string;
   note: string;
+  snippet?: string;
   links?: { label: string; href: string }[];
 };
 
 const installOptions: InstallOption[] = [
   {
+    id: "python",
     label: "Python",
     command: "pip install infomap",
-    note: "Python 3.11+ · Windows / macOS / Linux wheels",
+    note: "Recommended for most research workflows · Python 3.11+ · Windows / macOS / Linux wheels",
     links: [
       { label: "PyPI", href: "https://pypi.org/project/infomap/" },
       {
@@ -29,10 +33,11 @@ const installOptions: InstallOption[] = [
     ],
   },
   {
+    id: "r",
     label: "R",
     command:
       'install.packages("infomap", repos = c("https://mapequation.r-universe.dev", "https://cloud.r-project.org"))',
-    note: "Pre-built R binaries from r-universe",
+    note: "For R analysis workflows · Pre-built binaries from r-universe",
     links: [
       {
         label: "r-universe",
@@ -41,9 +46,10 @@ const installOptions: InstallOption[] = [
     ],
   },
   {
+    id: "homebrew",
     label: "Homebrew",
     command: "brew install mapequation/infomap/infomap",
-    note: "Native CLI on macOS and Linux",
+    note: "Native CLI for macOS and Linux workflows",
     links: [
       {
         label: "Homebrew tap",
@@ -52,9 +58,10 @@ const installOptions: InstallOption[] = [
     ],
   },
   {
+    id: "docker",
     label: "Docker",
     command: "docker run ghcr.io/mapequation/infomap:latest",
-    note: "Multi-architecture image from GitHub Container Registry",
+    note: "Reproducible CLI runs from GitHub Container Registry",
     links: [
       {
         label: "ghcr.io/mapequation/infomap",
@@ -63,9 +70,10 @@ const installOptions: InstallOption[] = [
     ],
   },
   {
+    id: "typescript",
     label: "TypeScript",
     command: "npm install @mapequation/infomap",
-    note: "WebAssembly package for browser and Node.js apps",
+    note: "WebAssembly package for browser, Node.js, and TypeScript apps",
     links: [
       {
         label: "npm",
@@ -74,6 +82,7 @@ const installOptions: InstallOption[] = [
     ],
   },
   {
+    id: "source",
     label: "Source",
     command: "make build-native",
     note: "Native CLI from source",
@@ -87,7 +96,27 @@ const installOptions: InstallOption[] = [
 ];
 
 export default function InstallCard() {
-  const [copiedTab, setCopiedTab] = useState<string | null>(null);
+  const router = useRouter();
+  const [active, setActive] = useState<string>(installOptions[0].id);
+
+  // Hydrate active tab from `?lang=` on mount and on URL change.
+  useEffect(() => {
+    const fromQuery =
+      typeof router.query.lang === "string"
+        ? installOptions.find((o) => o.id === router.query.lang)?.id
+        : undefined;
+    if (fromQuery && fromQuery !== active) setActive(fromQuery);
+    // Intentionally watch only router.query.lang.
+  }, [router.query.lang]);
+
+  const onTabChange = (id: string) => {
+    setActive(id);
+    const next = { ...router.query, lang: id };
+    router.replace({ pathname: router.pathname, query: next }, undefined, {
+      shallow: true,
+      scroll: false,
+    });
+  };
 
   return (
     <Box
@@ -97,7 +126,10 @@ export default function InstallCard() {
       bg="white"
       overflow="hidden"
     >
-      <TabsRoot defaultValue={installOptions[0].label}>
+      <TabsRoot
+        value={active}
+        onValueChange={(d: { value: string }) => onTabChange(d.value)}
+      >
         <TabsList
           aria-label="Install options"
           gap={0}
@@ -107,8 +139,8 @@ export default function InstallCard() {
         >
           {installOptions.map((option) => (
             <TabsTrigger
-              key={option.label}
-              value={option.label}
+              key={option.id}
+              value={option.id}
               borderRadius={0}
               borderBottomWidth="3px"
               borderBottomColor="transparent"
@@ -118,7 +150,6 @@ export default function InstallCard() {
               h="64px"
               _hover={{ bg: "gray.50", color: "gray.900" }}
               _selected={{
-                //borderBottomColor: "red.500",
                 color: "gray.900",
                 fontWeight: 700,
               }}
@@ -129,14 +160,14 @@ export default function InstallCard() {
         </TabsList>
 
         {installOptions.map((option) => (
-          <TabsContent key={option.label} value={option.label}>
-            <Stack gap={5} py={{ base: 4, md: 6 }} px={8}>
+          <TabsContent key={option.id} value={option.id}>
+            <Stack gap={5} py={{ base: 4, md: 6 }} px={{ base: 4, md: 8 }}>
               <Box
                 bg="gray.100"
                 borderWidth="1px"
                 borderColor="gray.200"
                 borderRadius="md"
-                py={{ base: 2, md: 2 }}
+                py={2}
                 px={4}
                 display="flex"
                 alignItems="center"
@@ -152,19 +183,11 @@ export default function InstallCard() {
                 >
                   {option.command}
                 </chakra.code>
-                <Button
-                  type="button"
-                  variant="surface"
+                <CopyButton
+                  text={option.command}
                   size="sm"
-                  flexShrink={0}
-                  onClick={async () => {
-                    await navigator?.clipboard?.writeText(option.command);
-                    setCopiedTab(option.label);
-                  }}
-                >
-                  {copiedTab === option.label ? <LuCheck /> : <LuCopy />}
-                  {copiedTab === option.label ? "Copied" : "Copy"}
-                </Button>
+                  ariaLabel={`Copy ${option.label} install command`}
+                />
               </Box>
 
               <Flex

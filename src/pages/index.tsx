@@ -1,7 +1,9 @@
 import {
   Box,
-  chakra,
+  Button,
   Container,
+  chakra,
+  Flex,
   Heading,
   SimpleGrid,
   Stack,
@@ -9,6 +11,9 @@ import {
 } from "@chakra-ui/react";
 import type { GetStaticProps, NextPage } from "next";
 import NextLink from "next/link";
+import { LuArrowRight } from "react-icons/lu";
+import { PrimaryButton } from "../shared/components/PrimaryButton";
+import { QuickStart } from "../shared/components/QuickStart";
 import FlowDemo from "../shared/compounds/FlowDemo";
 import NewsList from "../shared/compounds/NewsList";
 import { PortalSection } from "../shared/compounds/portal";
@@ -18,25 +23,28 @@ const PORTAL_CARDS = [
   {
     href: "/infomap",
     title: "Infomap",
-    description: "Run multilevel community detection on your own networks.",
+    description:
+      "Install the reference implementation or test a network in your browser.",
     image: "/apps/Infomap.png",
     imagePosition: "center top",
   },
   {
     href: "/apps",
-    title: "Apps & Notebooks",
-    description: "Visualize partitions, hierarchies, and bioregions.",
+    title: "Apps",
+    description:
+      "Inspect partitions, hierarchies, alluvial changes, and bioregions.",
     image: "/apps/NewAlluvialGenerator.png",
     imagePosition: "bottom left",
   },
   {
     href: "/publications",
     title: "Publications",
-    description: "Theory, applications, and the canonical references to cite.",
+    description:
+      "Find method papers, software citations, surveys, and examples to cite.",
     image:
-      "/publications/Rosvall-Bergstrom-2008-Maps-of-information-flow/science2004.svg",
-    imagePosition: "center",
-    imageSize: "150%",
+      "/publications/Smiljanic-Etal-2026-MapEquationSurvey/fig-flow-mapping.svg",
+    imagePosition: "top right",
+    imageSize: "112%",
   },
 ];
 
@@ -61,17 +69,29 @@ const HomePage: NextPage<Props> = ({ recentNews }) => {
         mt={{ base: 8, md: 12 }}
       >
         <Stack align="flex-start" gap={5}>
-          <Heading as="h1" size="4xl" lineHeight={1.12}>
-            The Map Equation framework.
+          <Heading as="h1" textStyle="h1">
+            Find flow-based communities in complex networks
           </Heading>
-          <Text color="gray.700" fontSize={{ base: "md", md: "lg" }} mb={0}>
-            A coding-theoretic approach to community detection: good communities
-            are the ones that compress the description of a random walk best.
+          <Text color="gray.700" textStyle="body" mb={0}>
+            Use the map equation framework and Infomap to model how flow moves
+            through your network and detect multilevel communities in directed,
+            weighted, multilayer, bipartite, and memory networks.
           </Text>
-          <Text color="gray.700" fontSize={{ base: "md", md: "lg" }} mb={0}>
-            Since 2008, the framework has grown into Infomap (the reference
-            algorithm), a family of visualizations, and ongoing research on
-            higher-order, multilayer, and Bayesian community detection.
+          <Flex gap={3} flexWrap="wrap" mt={1}>
+            <PrimaryButton href="/infomap/workbench">
+              Run a network in Infomap <LuArrowRight />
+            </PrimaryButton>
+            <Button asChild size="lg" variant="surface">
+              <NextLink href="/publications#Smiljanic-Etal-2026-MapEquationSurvey">
+                Read the survey <LuArrowRight />
+              </NextLink>
+            </Button>
+          </Flex>
+          <QuickStart />
+          <Text color="gray.600" textStyle="body" mb={0}>
+            Since 2008, the framework has grown from a random-walk coding idea
+            into open-source software, visualization tools, and ongoing research
+            on higher-order, multilayer, and Bayesian community detection.
           </Text>
         </Stack>
         <Box

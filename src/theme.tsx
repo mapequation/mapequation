@@ -1,6 +1,11 @@
 import "@fontsource/philosopher/700.css";
 import "@fontsource/open-sans/400.css";
+import "@fontsource/open-sans/600.css";
+import "@fontsource/open-sans/700.css";
 import { createSystem, defaultConfig } from "@chakra-ui/react";
+
+const monoStack =
+  "Monaco, Consolas, Inconsolata, Deja Vu Sans Mono, Droid Sans Mono, Andale Mono, Lucida Console, monospace";
 
 const system = createSystem(defaultConfig, {
   globalCss: {
@@ -17,8 +22,7 @@ const system = createSystem(defaultConfig, {
       },
     },
     code: {
-      fontFamily:
-        "Monaco, Consolas, Inconsolata, Deja Vu Sans Mono, Droid Sans Mono, Andale Mono, Lucida Console, monospace",
+      fontFamily: monoStack,
       color: "gray.700",
       fontSize: "sm",
       px: "0.4em",
@@ -33,6 +37,10 @@ const system = createSystem(defaultConfig, {
     p: {
       mb: 4,
     },
+    '[data-scope="accordion"][data-part="item-content"]': {
+      animation: "none !important",
+      transition: "none !important",
+    },
   },
 
   theme: {
@@ -46,6 +54,49 @@ const system = createSystem(defaultConfig, {
         },
         info: {
           value: "blue.50",
+        },
+      },
+    },
+    textStyles: {
+      h1: {
+        value: {
+          fontFamily: '"Open Sans", -apple-system, sans-serif',
+          fontWeight: 700,
+          fontSize: { base: "35px", md: "40px" },
+          lineHeight: 1.05,
+          letterSpacing: "-0.005em",
+        },
+      },
+      h2: {
+        value: {
+          fontFamily: '"Open Sans", -apple-system, sans-serif',
+          fontWeight: 600,
+          fontSize: { base: "24px", md: "28px" },
+          lineHeight: 1.2,
+        },
+      },
+      body: {
+        value: {
+          fontFamily: '"Open Sans", -apple-system, sans-serif',
+          fontWeight: 400,
+          fontSize: "18px",
+          lineHeight: 1.55,
+        },
+      },
+      meta: {
+        value: {
+          fontFamily: monoStack,
+          fontWeight: 400,
+          fontSize: "14px",
+          lineHeight: 1.5,
+        },
+      },
+      code: {
+        value: {
+          fontFamily: monoStack,
+          fontWeight: 400,
+          fontSize: "14px",
+          lineHeight: 1.55,
         },
       },
     },

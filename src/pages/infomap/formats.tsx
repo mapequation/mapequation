@@ -507,8 +507,8 @@ const FormatsPage: NextPage = () => {
           <Text color="gray.500" fontSize="sm" mb={2}>
             Documentation
           </Text>
-          <Heading as="h1" size="lg" mb={4} id="Formats">
-            Input & output formats
+          <Heading as="h1" textStyle="h1" mb={4} id="Formats">
+            Prepare network data and read Infomap output
           </Heading>
 
           <Text
@@ -516,9 +516,9 @@ const FormatsPage: NextPage = () => {
             fontSize={{ base: "md", md: "lg" }}
             maxW="42rem"
           >
-            Infomap reads and writes plain-text network files. Inputs are link
-            lists or extensions of them; outputs describe the partition Infomap
-            found, in flat or hierarchical form.
+            Infomap reads plain-text network files and writes the communities it
+            finds in formats suited for downstream analysis, visualization, and
+            reproducible reporting.
           </Text>
 
           <Box as="section" mb={10}>

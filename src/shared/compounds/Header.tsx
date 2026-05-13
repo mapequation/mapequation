@@ -1,10 +1,13 @@
 import {
   Box,
   Container,
+  Drawer,
   Flex,
   Heading,
   HoverCard,
   HStack,
+  IconButton,
+  Portal,
   SimpleGrid,
   Stack,
   Text,
@@ -12,6 +15,7 @@ import {
 import NextLink from "next/link";
 import { useRouter } from "next/router";
 import type { FC, PropsWithChildren, ReactNode } from "react";
+import { LuMenu, LuX } from "react-icons/lu";
 import Logo from "../components/Logo";
 
 interface NavItem {
@@ -189,6 +193,67 @@ const InfomapMega = ({ active, href }: { active: boolean; href: string }) => (
   </HoverCard.Root>
 );
 
+// Chakra v3's Drawer compound types omit `children` — runtime accepts it.
+const DrawerCloseTrigger = Drawer.CloseTrigger as FC<
+  PropsWithChildren<{ asChild?: boolean }>
+>;
+const DrawerTrigger = Drawer.Trigger as FC<
+  PropsWithChildren<{ asChild?: boolean }>
+>;
+const DrawerContent = Drawer.Content as FC<
+  PropsWithChildren<Record<string, unknown>>
+>;
+const DrawerBody = Drawer.Body as FC<
+  PropsWithChildren<Record<string, unknown>>
+>;
+const DrawerPositioner = Drawer.Positioner as FC<PropsWithChildren>;
+
+const MobileNav = ({ active }: { active: string }) => (
+  <Drawer.Root size="full" placement="end">
+    <DrawerTrigger asChild>
+      <IconButton aria-label="Open menu" variant="ghost" size="md">
+        <LuMenu />
+      </IconButton>
+    </DrawerTrigger>
+    <Portal>
+      <Drawer.Backdrop />
+      <DrawerPositioner>
+        <DrawerContent bg="#f5f2f0">
+          <Flex justify="flex-end" p={4}>
+            <DrawerCloseTrigger asChild>
+              <IconButton aria-label="Close menu" variant="ghost" size="md">
+                <LuX />
+              </IconButton>
+            </DrawerCloseTrigger>
+          </Flex>
+          <DrawerBody>
+            <Stack as="nav" gap={2} mt={4}>
+              {MAIN_NAV.map((item) => (
+                <Box
+                  key={item.id}
+                  asChild
+                  display="block"
+                  px={4}
+                  py={3}
+                  minH="44px"
+                  borderRadius="md"
+                  fontSize="xl"
+                  fontWeight={active === item.id ? 600 : 400}
+                  color={active === item.id ? "#b22222" : "gray.900"}
+                  textDecoration="none"
+                  _hover={{ bg: "blackAlpha.50" }}
+                >
+                  <NextLink href={item.href}>{item.label}</NextLink>
+                </Box>
+              ))}
+            </Stack>
+          </DrawerBody>
+        </DrawerContent>
+      </DrawerPositioner>
+    </Portal>
+  </Drawer.Root>
+);
+
 export default function Header() {
   const router = useRouter();
   const top = topSection(router.pathname);
@@ -205,17 +270,11 @@ export default function Header() {
       bgSize="auto, 10px 10px"
     >
       <Container>
-        <Flex
-          align="center"
-          flexWrap="wrap"
-          rowGap={1}
-          columnGap={6}
-          py={3}
-          minW={0}
-        >
+        <Flex align="center" justify="space-between" py={3} minW={0} gap={4}>
           <Box flexShrink={0}>
             <Logo size={38} />
           </Box>
+
           <HStack as="nav" columnGap={2} rowGap={0} flexWrap="wrap">
             {MAIN_NAV.map((item) => {
               const active = top === item.id;
@@ -231,6 +290,10 @@ export default function Header() {
               );
             })}
           </HStack>
+
+          <Box display={{ base: "block", md: "none" }}>
+            <MobileNav active={top} />
+          </Box>
         </Flex>
       </Container>
     </Box>

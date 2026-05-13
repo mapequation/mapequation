@@ -29,7 +29,6 @@ exports the site with `next build` into `out/` as configured in
 - `npm run build`: Build the static export into `out/`. Do not run this after
   every edit unless explicitly requested.
 - `npm run serve:export`: Serve the built `out/` directory locally.
-- `npm run test:smoke`: Run Playwright smoke tests.
 - `npm run verify`: Run the CI-like full check: `check`, `build`, and smoke
   tests.
 

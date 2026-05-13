@@ -30,7 +30,7 @@ const installMethods = [
     title: "Python package",
     recommended: true,
     description:
-      "Use this if you want the Python API or the easiest way to install the infomap command-line tool.",
+      "Start here for most research workflows. The package installs both the Python API and the infomap command-line tool.",
     tags: ["Python 3.11+", "macOS", "Linux", "Windows"],
     command: "pip install infomap",
     commands: [
@@ -47,7 +47,7 @@ const installMethods = [
     label: "CLI",
     title: "Native CLI with Homebrew",
     description:
-      "Use Homebrew if you want the native command-line tool without installing the Python package.",
+      "Use Homebrew when you want the native command-line tool without installing the Python package.",
     tags: ["macOS", "Linux", "CLI"],
     command: "brew install mapequation/infomap/infomap",
     commands: [
@@ -64,7 +64,7 @@ const installMethods = [
     label: "Binaries",
     title: "Standalone binaries",
     description:
-      "Use a standalone binary when you want to download an executable directly. OpenMP builds may be faster on larger networks but require OpenMP runtime libraries.",
+      "Use a standalone binary when you only need the executable. OpenMP builds may be faster on larger networks but require OpenMP runtime libraries.",
     tags: ["macOS", "Linux", "Windows", "OpenMP"],
     custom: "binaries",
     links: [
@@ -75,7 +75,8 @@ const installMethods = [
     id: "RPackage",
     label: "R",
     title: "R package",
-    description: "Pre-built R binaries are published on r-universe.",
+    description:
+      "Use the R package when Infomap is part of an R analysis workflow. Pre-built binaries are published on r-universe.",
     tags: ["R", "r-universe"],
     command:
       'install.packages("infomap", repos = c("https://mapequation.r-universe.dev", "https://cloud.r-project.org"))',
@@ -86,7 +87,7 @@ const installMethods = [
     label: "TypeScript",
     title: "TypeScript package",
     description:
-      "Use the WebAssembly worker package to embed Infomap in browser and TypeScript applications.",
+      "Use the WebAssembly worker package to embed Infomap in browser, Node.js, and TypeScript applications.",
     tags: ["TypeScript", "NPM"],
     command: "npm install @mapequation/infomap",
     links: [["npm", "//www.npmjs.com/package/@mapequation/infomap"]],
@@ -96,7 +97,7 @@ const installMethods = [
     label: "Docker",
     title: "Docker",
     description:
-      "Use the GitHub Container Registry image for reproducible CLI runs in CI or shared compute environments.",
+      "Use the container image for reproducible CLI runs in CI, teaching material, or shared compute environments.",
     tags: ["Docker", "amd64", "arm64"],
     command:
       'docker run -it --rm -v "$(pwd)":/data ghcr.io/mapequation/infomap:latest [infomap arguments]',
@@ -112,7 +113,7 @@ const installMethods = [
     label: "Source",
     title: "Build from source",
     description:
-      "Build locally when you want to modify Infomap or compile with custom flags. Requires a working gcc or clang toolchain.",
+      "Build locally when you want to modify Infomap, inspect the implementation, or compile with custom flags. Requires a working gcc or clang toolchain.",
     tags: ["gcc", "clang"],
     command:
       "git clone git@github.com:mapequation/infomap.git\ncd infomap\nmake build-native",
@@ -214,7 +215,7 @@ function MethodCard({ method }) {
           letterSpacing="0.08em"
           textTransform="uppercase"
         >
-          Most users start here
+          Recommended for research workflows
         </Box>
       )}
 
@@ -449,8 +450,8 @@ const InstallPage: NextPage = () => {
           <Text color="gray.500" fontSize="sm" mb={2}>
             Documentation
           </Text>
-          <Heading as="h1" size="lg" mb={4} id="Install">
-            Install Infomap
+          <Heading as="h1" textStyle="h1" mb={4} id="Install">
+            Install Infomap for Python, R, or build from source
           </Heading>
 
           <Text
@@ -458,10 +459,11 @@ const InstallPage: NextPage = () => {
             fontSize={{ base: "md", md: "lg" }}
             maxW="42rem"
           >
-            For most users, the Python package is the best starting point: it
-            installs both the Python API and the <code>infomap</code>{" "}
-            command-line tool. If you only need a native CLI, use Homebrew or a
-            standalone binary.
+            For most researchers, the Python package is the best starting point:
+            it installs both the Python API and the <code>infomap</code>{" "}
+            command-line tool. Use R for analysis workflows, Docker for
+            reproducible compute environments, or standalone binaries when you
+            only need the executable.
           </Text>
 
           <Flex gap={2} flexWrap="wrap" mb={8}>

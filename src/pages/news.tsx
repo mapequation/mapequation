@@ -12,11 +12,12 @@ const NewsPage: NextPage<Props> = ({ items }) => (
   <Container>
     <Stack mt={{ base: 8, md: 12 }} mb={8} gap={4} align="flex-start">
       <PortalEyebrow>News</PortalEyebrow>
-      <Heading as="h1" size="2xl" lineHeight={1.15}>
-        Every release and every paper.
+      <Heading as="h1" textStyle="h1">
+        Releases, papers, and project updates
       </Heading>
-      <Text color="gray.700" fontSize={{ base: "md", md: "lg" }} maxW="42rem">
-        Software releases and every publication from the Map Equation team.
+      <Text color="gray.700" textStyle="body" maxW="42rem">
+        Follow new Infomap releases, method papers, tutorials, and updates from
+        the Map Equation team.
       </Text>
     </Stack>
     <NewsList items={items} />

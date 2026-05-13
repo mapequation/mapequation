@@ -217,18 +217,16 @@ const AboutPage: NextPage = () => (
       <Box position={{ lg: "sticky" }} top={{ lg: "5rem" }} alignSelf="start">
         <Box>
           <PortalEyebrow>About</PortalEyebrow>
-          <Heading as="h1" size="2xl" mb={4} maxW="14em" lineHeight={1.15}>
-            We compress flows to find structure.
+          <Heading as="h1" textStyle="h1" mb={4} maxW="14em">
+            We develop methods for mapping flow in complex systems
           </Heading>
-          <Text color="gray.700" fontSize={{ base: "md", md: "lg" }} mb={4}>
-            We are a small group at Umeå University working on flow-based
-            community detection. Since 2008 we've built Infomap, a family of
-            visualizations for inspecting partitions, and methods spanning
-            higher-order, multilayer, and Bayesian community detection.
+          <Text color="gray.700" textStyle="body" mb={4}>
+            We are a research group at Umeå University studying flow-based
+            community detection. We build Infomap, visualization tools, and
+            methods for higher-order, multilayer, and Bayesian network models.
           </Text>
-          <Text color="gray.700" fontSize="md" mb={6}>
-            Most of the software is open source, all of the papers are freely
-            available.
+          <Text color="gray.700" textStyle="body" mb={6}>
+            Our software is open source, and our papers are freely available.
           </Text>
           <Flex gap={3} flexWrap="wrap">
             <Button asChild variant="surface">
@@ -240,10 +238,10 @@ const AboutPage: NextPage = () => (
         </Box>
 
         <Box mt="5rem">
-          <Heading as="h2" size="xl" mb={4} lineHeight={1.15} id="Terms">
+          <Heading as="h2" textStyle="h2" mb={4} id="Terms">
             Terms
           </Heading>
-          <Text color="gray.700" fontSize={{ base: "md", md: "lg" }} mb={4}>
+          <Text color="gray.700" textStyle="body" mb={4}>
             The Infomap software is released under a dual licence. To give
             everyone maximum freedom to make use of Infomap and derivative
             works, we make the code open source under the{" "}

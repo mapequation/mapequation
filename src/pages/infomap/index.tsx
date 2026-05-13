@@ -11,11 +11,9 @@ import type { NextPage } from "next";
 import NextLink from "next/link";
 import { LuArrowRight } from "react-icons/lu";
 import { PrimaryButton } from "../../shared/components/PrimaryButton";
-import { Tag } from "../../shared/components/Tag";
 import InstallCard from "../../shared/compounds/InstallCard";
 import PillarCard from "../../shared/compounds/PillarCard";
 import { PortalEyebrow, PortalSection } from "../../shared/compounds/portal";
-import { infomapVersionLabel } from "../../shared/infomapVersion";
 
 const Home: NextPage = () => {
   return (
@@ -29,14 +27,13 @@ const Home: NextPage = () => {
       >
         <Stack align="flex-start" gap={5}>
           <PortalEyebrow>Software</PortalEyebrow>
-          <Heading as="h1" size="4xl" maxW="13em" lineHeight={1.12}>
-            Network community detection using the Map Equation framework.
+          <Heading as="h1" textStyle="h1" maxW="13em">
+            Run flow-based community detection with Infomap
           </Heading>
-          <Text color="gray.700" fontSize={{ base: "md", md: "lg" }} mb={0}>
-            Infomap is the reference implementation of the map equation. It
-            finds multilevel communities in directed, weighted, multilayer, and
-            memory networks — fast, well-tested, with first-party Python and R
-            bindings.
+          <Text color="gray.700" textStyle="body" mb={0}>
+            Infomap detects communities by asking where flow is retained in a
+            network. Use it from Python, R, the command line, or the browser for
+            directed, weighted, multilayer, bipartite, and memory networks.
           </Text>
 
           <Flex gap={3} flexWrap="wrap">
@@ -76,22 +73,22 @@ const Home: NextPage = () => {
           <PillarCard
             href="/infomap/install"
             eyebrow="Install"
-            title="Install Infomap"
-            text="Python, R, and CLI. Works on macOS, Linux and Windows."
+            title="Install for your workflow"
+            text="Python, R, CLI, Docker, Homebrew, binaries, and TypeScript packages."
             cta="How to install"
           />
           <PillarCard
             href="/infomap/workbench"
             eyebrow="Try it"
-            title="Run in your browser"
-            text="Upload a network and inspect communities right here, no install needed."
+            title="Try a small network first"
+            text="Upload or paste a network and inspect the communities before installing."
             cta="Open workbench"
           />
           <PillarCard
             href="/publications#how-to-cite"
             eyebrow="Cite"
-            title="Reference papers"
-            text="The PNAS 2008 paper, the map equation paper, and the software citation."
+            title="Cite the method correctly"
+            text="Copy citations for the software version and the map equation paper."
             cta="How to cite"
           />
         </SimpleGrid>
@@ -100,19 +97,9 @@ const Home: NextPage = () => {
       <PortalSection
         id="install"
         eyebrow="Install"
-        title="Pick your platform"
+        title="Choose your research workflow"
         href="/infomap/install"
         linkText="Full install guide"
-        extra={
-          <chakra.a
-            href="https://github.com/mapequation/infomap/releases"
-            target="_blank"
-            rel="noreferrer"
-            textDecoration="none"
-          >
-            <Tag>{infomapVersionLabel} ↗</Tag>
-          </chakra.a>
-        }
       >
         <InstallCard />
       </PortalSection>
@@ -123,14 +110,14 @@ const Home: NextPage = () => {
             href="/infomap/formats"
             eyebrow="Reference"
             title="Input & output formats"
-            text="How to format your data and interpret Infomap's output."
+            text="Prepare your network data and choose the output your analysis needs."
             cta="Read the docs"
           />
           <PillarCard
             href="/infomap/how-it-works"
             eyebrow="In depth"
             title="How it works"
-            text="Learn the mechanics of the map equation and Infomap."
+            text="Connect your research question to the flow model, map equation, and search algorithm."
             cta="Read the docs"
           />
         </SimpleGrid>
@@ -138,8 +125,8 @@ const Home: NextPage = () => {
 
       <PortalSection title="Issues & discussions" eyebrow="Got feedback?">
         <Text color="gray.700" fontSize="sm" mb={4} maxW="44rem">
-          We read every issue and reply on discussions. Open one if you hit a
-          bug or want to ask something about Infomap.
+          Open an issue if you find a bug, or start a discussion if you need
+          help modeling a network or interpreting an Infomap result.
         </Text>
         <Flex gap={6} flexWrap="wrap">
           {[

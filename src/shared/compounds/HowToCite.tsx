@@ -1,6 +1,6 @@
 import { Box, Button, chakra, Flex, Heading, Text } from "@chakra-ui/react";
 import { useState } from "react";
-import { LuCheck, LuCopy } from "react-icons/lu";
+import { CopyButton } from "../components/CopyButton";
 import { infomapVersion } from "../infomapVersion";
 
 const formats = [
@@ -122,8 +122,7 @@ function FormatPicker({
   );
 }
 
-function CitationBlock({ copyKey, value }: { copyKey: string; value: string }) {
-  const [copied, setCopied] = useState("");
+function CitationBlock({ value }: { value: string }) {
   return (
     <Box position="relative">
       <Box
@@ -144,22 +143,9 @@ function CitationBlock({ copyKey, value }: { copyKey: string; value: string }) {
           {value}
         </chakra.pre>
       </Box>
-      <Button
-        type="button"
-        variant="surface"
-        size="xs"
-        position="absolute"
-        top={2}
-        right={2}
-        onClick={async () => {
-          await navigator?.clipboard?.writeText(value);
-          setCopied(copyKey);
-          window.setTimeout(() => setCopied(""), 1400);
-        }}
-      >
-        {copied === copyKey ? <LuCheck /> : <LuCopy />}
-        {copied === copyKey ? "Copied" : "Copy"}
-      </Button>
+      <Box position="absolute" top={2} right={2}>
+        <CopyButton text={value} />
+      </Box>
     </Box>
   );
 }
@@ -219,7 +205,7 @@ function CitationCard({
         {text}
       </Text>
       <FormatPicker value={format} onChange={setFormat} />
-      <CitationBlock copyKey={id} value={citation[format]} />
+      <CitationBlock value={citation[format]} />
     </Box>
   );
 }
@@ -237,20 +223,20 @@ export default function HowToCite() {
         mb={6}
       >
         Most papers using Infomap cite two things: the software package, which
-        credits the implementation and version, and the map equation paper,
+        identifies the implementation and version, and the map equation paper,
         which credits the method.
       </Text>
       <CitationCard
         id="cite-software"
         title="Software"
-        text="Use this citation when you refer to Infomap as software, especially when reproducibility depends on the package or release version."
+        text="Use this citation when your analysis depends on Infomap as software, especially when the package or release version matters for reproducibility."
         citation={softwareCitation}
         showVersion
       />
       <CitationCard
         id="cite-paper"
         title="Original map equation paper"
-        text="Use this citation when you describe the map equation method, random-walk coding, or the algorithmic idea behind Infomap."
+        text="Use this citation when you describe the map equation method, random-walk coding, or the community-detection principle behind Infomap."
         citation={paperCitation}
       />
     </Box>

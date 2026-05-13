@@ -95,154 +95,156 @@ const PublicationsAccordion = ({
     onValueChange={(d) => onValueChange(d.value)}
   >
     {publications.map((p, i) => (
-      <AccItem
-        key={p.slug}
-        value={p.slug}
-        id={p.slug}
-        scrollMarginTop="5rem"
-        borderBottomWidth={i < publications.length - 1 ? "1px" : 0}
-        borderBottomColor="gray.100"
-      >
-        <AccTrigger
-          px={6}
-          py={5}
-          gap={{ base: 2, md: 6 }}
-          textAlign="left"
-          flexDirection={{ base: "column", md: "row" }}
-          alignItems={{ base: "stretch", md: "flex-start" }}
-          _hover={{ bg: "gray.50" }}
+      <Box key={p.slug} id={p.slug} scrollMarginTop="7rem">
+        <AccItem
+          value={p.slug}
+          borderBottomWidth={i < publications.length - 1 ? "1px" : 0}
+          borderBottomColor="gray.100"
         >
-          <Flex
-            gap={3}
-            align="center"
-            w={{ base: "100%", md: "auto" }}
-            flexShrink={0}
+          <AccTrigger
+            px={6}
+            py={5}
+            gap={{ base: 2, md: 6 }}
+            textAlign="left"
+            flexDirection={{ base: "column", md: "row" }}
+            alignItems={{ base: "stretch", md: "flex-start" }}
+            _hover={{ bg: "gray.50" }}
           >
-            <Text
-              color="gray.500"
-              fontFamily="monospace"
-              fontSize="xs"
-              letterSpacing="0.04em"
-              textTransform="uppercase"
-              w={{ md: "7rem" }}
-              flexShrink={0}
-              mb={0}
-            >
-              {formatPubDate(p)}
-            </Text>
-            <Box w={{ md: "7rem" }} flexShrink={0}>
-              <Tag>{p.category}</Tag>
-            </Box>
-          </Flex>
-          <Box flex="1" minW={0} w={{ base: "100%", md: "auto" }}>
-            <Text
-              fontWeight={600}
-              fontSize="sm"
-              lineHeight={1.4}
-              color="gray.900"
-              mb={1}
-            >
-              {p.title}
-            </Text>
-            <Text color="gray.600" fontSize="sm" mb={0}>
-              {p.authors}
-            </Text>
-          </Box>
-          <Accordion.ItemIndicator />
-        </AccTrigger>
-        <AccContent>
-          <AccBody px={6} pb={6} pt={0}>
             <Flex
-              direction={{ base: "column", md: "row" }}
-              gap={{ base: 6, md: 12 }}
-              align="flex-start"
+              gap={3}
+              align="center"
+              w={{ base: "100%", md: "auto" }}
+              flexShrink={0}
             >
-              <Box
-                w={{ base: "100%", md: "calc(60% - 1.5rem)" }}
+              <Text
+                color="gray.500"
+                fontFamily="monospace"
+                fontSize="xs"
+                letterSpacing="0.04em"
+                textTransform="uppercase"
+                w={{ md: "7rem" }}
                 flexShrink={0}
-                minW={0}
-                order={{ base: 1, md: 0 }}
+                mb={0}
               >
-                {p.bodyHtml && (
-                  <Box
-                    color="gray.800"
-                    fontSize="sm"
-                    lineHeight={1.6}
-                    css={{
-                      "& p": { margin: 0 },
-                      "& p + p": { marginTop: "0.75rem" },
-                    }}
-                    // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted markdown rendered at build time
-                    dangerouslySetInnerHTML={{ __html: p.bodyHtml }}
-                  />
-                )}
-                <HStack gap={4} mt={p.bodyHtml ? 4 : 0} flexWrap="wrap">
-                  {p.doiHref && p.journal && (
-                    <ActionLink href={p.doiHref}>{p.journal} ↗</ActionLink>
-                  )}
-                  {!p.doiHref && p.journal && (
-                    <Text color="gray.600" fontSize="sm" mb={0}>
-                      {p.journal}
-                    </Text>
-                  )}
-                  {p.arxiv && (
-                    <ActionLink href={`https://arxiv.org/abs/${p.arxiv}`}>
-                      arXiv:{p.arxiv}
-                    </ActionLink>
-                  )}
-                  {p.pdfHref && (
-                    <ActionLink href={p.pdfHref} aria-label="PDF">
-                      <FaRegFilePdf size={16} />
-                    </ActionLink>
-                  )}
-                  <ActionLink href={p.scholarHref} aria-label="Google Scholar">
-                    <SiGooglescholar size={16} />
-                  </ActionLink>
-                  {p.links?.map((l) => (
-                    <ActionLink key={l.href} href={l.href}>
-                      {l.label} ↗
-                    </ActionLink>
-                  ))}
-                </HStack>
+                {formatPubDate(p)}
+              </Text>
+              <Box w={{ md: "7rem" }} flexShrink={0}>
+                <Tag>{p.category}</Tag>
               </Box>
-              {p.figureSrc && (
-                <Box
-                  flexShrink={0}
-                  w={{ base: "100%", md: "calc(40% - 1.5rem)" }}
-                  alignSelf="flex-start"
-                  order={{ base: 0, md: 1 }}
-                >
-                  <chakra.img
-                    src={p.figureSrc}
-                    alt={p.figure?.caption ?? p.title}
-                    display="block"
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "20rem",
-                      width: "auto",
-                      height: "auto",
-                      objectFit: "contain",
-                      marginLeft: "auto",
-                      marginRight: "auto",
-                    }}
-                  />
-                  {p.figure?.caption && (
-                    <Text
-                      color="gray.500"
-                      fontSize="xs"
-                      mt={2}
-                      mb={0}
-                      lineHeight={1.5}
-                    >
-                      {p.figure.caption}
-                    </Text>
-                  )}
-                </Box>
-              )}
             </Flex>
-          </AccBody>
-        </AccContent>
-      </AccItem>
+            <Box flex="1" minW={0} w={{ base: "100%", md: "auto" }}>
+              <Text
+                fontWeight={600}
+                fontSize="sm"
+                lineHeight={1.4}
+                color="gray.900"
+                mb={1}
+              >
+                {p.title}
+              </Text>
+              <Text color="gray.600" fontSize="sm" mb={0}>
+                {p.authors}
+              </Text>
+            </Box>
+            <Accordion.ItemIndicator />
+          </AccTrigger>
+          <AccContent>
+            <AccBody px={6} pb={6} pt={0}>
+              <Flex
+                direction={{ base: "column", md: "row" }}
+                gap={{ base: 6, md: 12 }}
+                align="flex-start"
+              >
+                <Box
+                  w={{ base: "100%", md: "calc(60% - 1.5rem)" }}
+                  flexShrink={0}
+                  minW={0}
+                  order={{ base: 1, md: 0 }}
+                >
+                  {p.bodyHtml && (
+                    <Box
+                      color="gray.800"
+                      fontSize="sm"
+                      lineHeight={1.6}
+                      css={{
+                        "& p": { margin: 0 },
+                        "& p + p": { marginTop: "0.75rem" },
+                      }}
+                      // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted markdown rendered at build time
+                      dangerouslySetInnerHTML={{ __html: p.bodyHtml }}
+                    />
+                  )}
+                  <HStack gap={4} mt={p.bodyHtml ? 4 : 0} flexWrap="wrap">
+                    {p.doiHref && p.journal && (
+                      <ActionLink href={p.doiHref}>{p.journal} ↗</ActionLink>
+                    )}
+                    {!p.doiHref && p.journal && (
+                      <Text color="gray.600" fontSize="sm" mb={0}>
+                        {p.journal}
+                      </Text>
+                    )}
+                    {p.arxiv && (
+                      <ActionLink href={`https://arxiv.org/abs/${p.arxiv}`}>
+                        arXiv:{p.arxiv}
+                      </ActionLink>
+                    )}
+                    {p.pdfHref && (
+                      <ActionLink href={p.pdfHref} aria-label="PDF">
+                        <FaRegFilePdf size={16} />
+                      </ActionLink>
+                    )}
+                    <ActionLink
+                      href={p.scholarHref}
+                      aria-label="Google Scholar"
+                    >
+                      <SiGooglescholar size={16} />
+                    </ActionLink>
+                    {p.links?.map((l) => (
+                      <ActionLink key={l.href} href={l.href}>
+                        {l.label} ↗
+                      </ActionLink>
+                    ))}
+                  </HStack>
+                </Box>
+                {p.figureSrc && (
+                  <Box
+                    flexShrink={0}
+                    w={{ base: "100%", md: "calc(40% - 1.5rem)" }}
+                    alignSelf="flex-start"
+                    order={{ base: 0, md: 1 }}
+                  >
+                    <chakra.img
+                      src={p.figureSrc}
+                      alt={p.figure?.caption ?? p.title}
+                      display="block"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: "20rem",
+                        width: "auto",
+                        height: "auto",
+                        objectFit: "contain",
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                      }}
+                    />
+                    {p.figure?.caption && (
+                      <Text
+                        color="gray.500"
+                        fontSize="xs"
+                        mt={2}
+                        mb={0}
+                        lineHeight={1.5}
+                      >
+                        {p.figure.caption}
+                      </Text>
+                    )}
+                  </Box>
+                )}
+              </Flex>
+            </AccBody>
+          </AccContent>
+        </AccItem>
+      </Box>
     ))}
   </Accordion.Root>
 );
@@ -258,17 +260,17 @@ const PublicationsPage: NextPage<Props> = ({ publications }) => {
   // Sync open accordion item with URL hash on mount + hashchange.
   useEffect(() => {
     const sync = () => {
-      const hash = window.location.hash.slice(1);
+      const hash = decodeURIComponent(window.location.hash.slice(1));
       if (!hash) return;
-      if (publications.some((p) => p.slug === hash)) {
-        setOpenItems([hash]);
-        // Defer scroll until accordion opens.
-        window.setTimeout(() => {
-          document
-            .getElementById(hash)
-            ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 100);
-      }
+      if (!publications.some((p) => p.slug === hash)) return;
+      setOpenItems([hash]);
+      // Accordion animation is disabled via theme globalCss, so layout has
+      // stabilized by the time React commits — one frame is enough.
+      requestAnimationFrame(() => {
+        document
+          .getElementById(hash)
+          ?.scrollIntoView({ behavior: "auto", block: "start" });
+      });
     };
     sync();
     window.addEventListener("hashchange", sync);
@@ -279,11 +281,12 @@ const PublicationsPage: NextPage<Props> = ({ publications }) => {
     <Container>
       <Stack mt={{ base: 8, md: 12 }} gap={4} align="flex-start">
         <PortalEyebrow>Publications</PortalEyebrow>
-        <Heading as="h1" size="2xl" maxW="15ch" lineHeight={1.15}>
-          Publications on the Map Equation framework.
+        <Heading as="h1" textStyle="h1" maxW="20ch">
+          Papers behind the Map Equation framework
         </Heading>
-        <Text color="gray.700" fontSize={{ base: "md", md: "lg" }} maxW="42rem">
-          Every publication from the Map Equation team and collaborators.
+        <Text color="gray.700" textStyle="body" maxW="42rem">
+          Find the core method papers, software citations, surveys, and
+          application papers for flow-based community detection with Infomap.
         </Text>
       </Stack>
 
@@ -292,7 +295,7 @@ const PublicationsPage: NextPage<Props> = ({ publications }) => {
       </Box>
 
       {featured.length > 0 && (
-        <PortalSection eyebrow="Featured" title="Highlights">
+        <PortalSection eyebrow="Featured" title="Featured papers">
           <SimpleGrid columns={{ base: 1, md: 3 }} gap={4}>
             {featured.map((p) => (
               <chakra.a
@@ -352,7 +355,7 @@ const PublicationsPage: NextPage<Props> = ({ publications }) => {
         </PortalSection>
       )}
 
-      <PortalSection title="All publications">
+      <PortalSection title="All papers">
         <Box
           bg="white"
           borderWidth="1px"

@@ -1,10 +1,11 @@
-import { Box, Heading, Link } from "@chakra-ui/react";
+import { Box, Heading, Link, Stack, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 
 export interface AppCardProps {
   href: string;
   title: string;
-  image?: string;
+  description?: string;
+  image: string;
   imageAlt?: string;
   imagePosition?: string;
   imageSize?: string;
@@ -15,34 +16,34 @@ export interface AppCardProps {
 export default function AppCard({
   href,
   title,
+  description,
   image,
   imageAlt = "",
   imagePosition = "center",
   imageSize = "cover",
   external = true,
-  children,
 }: AppCardProps) {
   return (
-    <Link
-      asChild
-      _hover={{ textDecoration: "none" }}
-      role="group"
-      display="block"
-    >
-      <a
-        href={href}
-        target={external ? "_blank" : undefined}
-        rel={external ? "noreferrer" : undefined}
+    <Stack as="article" gap={3} bg="transparent" transition="transform 150ms">
+      <Link
+        asChild
+        _hover={{ textDecoration: "none" }}
+        role="group"
+        display="block"
       >
-        {image ? (
+        <a
+          href={href}
+          target={external ? "_blank" : undefined}
+          rel={external ? "noreferrer" : undefined}
+        >
           <Box
-            aspectRatio="16 / 10"
+            aspectRatio="16 / 9"
             borderRadius="md"
             bg="white"
             boxShadow="sm"
             borderWidth="1px"
             borderColor="blackAlpha.100"
-            transition="all 150ms"
+            transition="box-shadow 150ms, border-color 150ms"
             _groupHover={{
               boxShadow: "md",
               borderColor: "rgba(18, 139, 194, 0.4)",
@@ -53,38 +54,30 @@ export default function AppCard({
             role="img"
             aria-label={imageAlt}
           />
-        ) : (
-          <Box
-            aspectRatio="16 / 10"
-            borderRadius="md"
-            bg="white"
-            boxShadow="sm"
-            borderWidth="1px"
-            borderColor="blackAlpha.100"
-            p={4}
-            overflow="hidden"
-            transition="all 150ms"
-            _groupHover={{
-              boxShadow: "md",
-              borderColor: "rgba(18, 139, 194, 0.4)",
-            }}
+        </a>
+      </Link>
+
+      <Heading as="h3" textStyle="h2" color="gray.900" mb={0}>
+        {title}
+      </Heading>
+
+      {description && (
+        <Text color="gray.700" fontSize="sm" mb={0} lineHeight={1.55}>
+          {description}
+        </Text>
+      )}
+
+      <Box>
+        <Link asChild fontSize="sm" fontWeight={600} color="#128bc2">
+          <a
+            href={href}
+            target={external ? "_blank" : undefined}
+            rel={external ? "noreferrer" : undefined}
           >
-            {children}
-          </Box>
-        )}
-        <Heading
-          as="h3"
-          size="sm"
-          mt={3}
-          color="#128bc2"
-          _groupHover={{ color: "#096992" }}
-        >
-          {title}{" "}
-          <span aria-hidden="true" style={{ fontWeight: 400 }}>
-            »
-          </span>
-        </Heading>
-      </a>
-    </Link>
+            Launch →
+          </a>
+        </Link>
+      </Box>
+    </Stack>
   );
 }
