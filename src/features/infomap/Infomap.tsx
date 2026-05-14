@@ -2,7 +2,6 @@ import {
   Box,
   Button,
   ButtonGroup,
-  Link as CkLink,
   Field,
   Flex,
   Grid,
@@ -10,16 +9,26 @@ import {
   Heading,
   HStack,
   Kbd,
+  Menu,
+  Portal,
   Stack,
   Text,
-  Textarea,
 } from "@chakra-ui/react";
 import Infomap from "@mapequation/infomap";
 import localforage from "localforage";
-import NextLink from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FC,
+  type PropsWithChildren,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   LuCheck,
+  LuChevronDown,
+  LuDownload,
+  LuFiles,
   LuPanelLeftOpen,
   LuPanelRightOpen,
   LuPlay,
@@ -32,7 +41,6 @@ import {
   ensureJsonOutput,
 } from "../../state/parameters";
 import type { InputFile, InputName } from "../../state/types";
-import Console from "./Console";
 import ExampleNetworksList from "./ExamplesMenu";
 import InputParameters from "./InputParameters";
 import InputTextarea from "./InputTextarea";
@@ -47,11 +55,27 @@ import {
 
 localforage.config({ name: "infomap" });
 
+// Chakra v3's Menu compound types omit `children` — runtime accepts it.
+const MenuTrigger = Menu.Trigger as FC<
+  PropsWithChildren<{ asChild?: boolean }>
+>;
+const MenuPositioner = Menu.Positioner as FC<PropsWithChildren>;
+const MenuContent = Menu.Content as FC<PropsWithChildren>;
+const MenuItem = Menu.Item as FC<
+  PropsWithChildren<{ onClick?: () => void; value: string }>
+>;
+
 const inputTabs = [
   { key: "network", label: "Network" },
   { key: "cluster data", label: "Clusters" },
   { key: "meta data", label: "Metadata" },
 ] satisfies { key: InputName; label: string }[];
+
+const inputPlaceholders = {
+  network: "Paste network data here…",
+  "cluster data": "Paste cluster data here…",
+  "meta data": "Paste metadata here…",
+} satisfies Record<InputName, string>;
 
 type EvaluationMetadata = {
   codeLength: number | null;
@@ -84,6 +108,66 @@ function parseEvaluationMetadata(content: Record<string, unknown>) {
   };
 }
 
+function OutputViewer({
+  ariaLabel = "Generated output",
+  content,
+  fontSize = "xs",
+  highlightComments = true,
+  onCopy,
+  placeholder = "",
+}: {
+  ariaLabel?: string;
+  content: string;
+  fontSize?: string;
+  highlightComments?: boolean;
+  onCopy: () => void;
+  placeholder?: string;
+}) {
+  const lines = content.split("\n");
+
+  return (
+    <Box
+      aria-label={ariaLabel}
+      as="pre"
+      bg="gray.50"
+      borderColor="gray.300"
+      borderRadius="md"
+      borderWidth="1px"
+      color="gray.900"
+      fontFamily="monospace"
+      fontSize={fontSize}
+      h="100%"
+      lineHeight={1.5}
+      m={0}
+      minH={0}
+      onCopy={onCopy}
+      overflow="auto"
+      p={3}
+      role="textbox"
+      tabIndex={0}
+      whiteSpace="pre"
+      w="100%"
+    >
+      {content
+        ? lines.map((line, index) => (
+            <Box
+              as="span"
+              color={
+                highlightComments && line.startsWith("#")
+                  ? "#6a737d"
+                  : undefined
+              }
+              display="block"
+              key={`${index}:${line}`}
+            >
+              {line || " "}
+            </Box>
+          ))
+        : placeholder}
+    </Box>
+  );
+}
+
 function PanelHeader({
   title,
   description,
@@ -94,26 +178,19 @@ function PanelHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <Flex
-      align={{ base: "flex-start", sm: "center" }}
-      justify="space-between"
-      direction={{ base: "column", sm: "row" }}
-      gap={3}
-      flexShrink={0}
-      mb={3}
-    >
-      <Box>
-        <Heading as="h2" size="sm" mb={1}>
+    <Box flexShrink={0} mb={3}>
+      <Flex align="center" gap={3} justify="space-between">
+        <Heading as="h2" size="sm" mb={0}>
           {title}
         </Heading>
-        {description && (
-          <Text color="gray.500" fontSize="sm" mb={0}>
-            {description}
-          </Text>
-        )}
-      </Box>
-      {action}
-    </Flex>
+        {action}
+      </Flex>
+      {description && (
+        <Text color="gray.500" fontSize="sm" mb={0} mt={1}>
+          {description}
+        </Text>
+      )}
+    </Box>
   );
 }
 
@@ -528,6 +605,27 @@ export default function InfomapOnline() {
   const outputFiles = [...physicalFiles, ...stateFiles].filter(
     (file) => showJsonOutput || !file.key.startsWith("json"),
   );
+  const activeOutputFile = outputFiles.find((file) => file.key === activeKey);
+  const visibleOutputFiles =
+    outputFiles.length <= 4
+      ? outputFiles
+      : [
+          ...outputFiles.slice(0, 3),
+          ...(activeOutputFile &&
+          !outputFiles.slice(0, 3).some((file) => file.key === activeKey)
+            ? [activeOutputFile]
+            : []),
+        ];
+  const hiddenOutputFiles = outputFiles.filter(
+    (file) => !visibleOutputFiles.some((visible) => visible.key === file.key),
+  );
+
+  useEffect(() => {
+    if (tab === "output" && outputFiles.length === 0) {
+      setTab("network");
+    }
+  }, [outputFiles.length, tab]);
+
   const runShortcut =
     typeof navigator !== "undefined" &&
     /Mac|iPhone|iPad/.test(navigator.platform)
@@ -561,25 +659,8 @@ export default function InfomapOnline() {
       pr={1}
     >
       <PanelHeader
-        title="Network input"
-        description={
-          <>
-            Editing {activeInput} ·{" "}
-            <CkLink asChild color="blue.600">
-              <NextLink href="/infomap/formats">Formats</NextLink>
-            </CkLink>
-          </>
-        }
-        action={
-          <ButtonGroup attached size="sm">
-            <LoadButton
-              onDrop={onLoad(activeInput)}
-              accept={inputAccept[activeInput]}
-            >
-              Load
-            </LoadButton>
-          </ButtonGroup>
-        }
+        title="Input data"
+        description="Paste, load, or choose an example."
       />
 
       <HStack flexShrink={0} mb={1} gap={1} align="center" maxW="100%">
@@ -589,6 +670,7 @@ export default function InfomapOnline() {
           size="sm"
           overflowX="auto"
           maxW="100%"
+          role="tablist"
         >
           {inputTabs.map(({ key, label }) => {
             const hasInput = Boolean(inputOptions[key].value);
@@ -597,10 +679,12 @@ export default function InfomapOnline() {
             return (
               <Button
                 key={key}
+                aria-selected={isActive}
+                boxShadow={isActive ? "inset 0 0 0 1px #b22222" : undefined}
+                color={isActive ? "#b22222" : undefined}
+                role="tab"
                 type="button"
                 onClick={() => store.setActiveInput(key)}
-                disabled={isActive}
-                bg={isActive ? "gray.100" : undefined}
               >
                 {hasInput && <LuCheck />}
                 {label}
@@ -611,13 +695,15 @@ export default function InfomapOnline() {
       </HStack>
 
       <InputTextarea
+        aria-label={`${activeInput} network input`}
+        name={`${activeInput}-network-input`}
         onDrop={onLoad(activeInput)}
         accept={inputAccept[activeInput]}
         onChange={(event) => onInputChange(activeInput)(event.target)}
         value={displayInputValue}
         readOnly={isLargeInput}
         disabled={isInputLoading}
-        placeholder={`Input ${activeInput} here`}
+        placeholder={inputPlaceholders[activeInput]}
         spellCheck={false}
         wrap="off"
         overflow="auto"
@@ -628,19 +714,27 @@ export default function InfomapOnline() {
         bg="gray.50"
         fontSize="sm"
       />
-      <Button
-        alignSelf="flex-start"
-        disabled={!hasActiveInputValue || isInputLoading}
-        flexShrink={0}
-        mt={1}
-        onClick={() => onInputChange(activeInput)({ name: "", value: "" })}
-        size="sm"
-        type="button"
-        variant="outline"
-      >
-        <LuX />
-        Clear
-      </Button>
+      <HStack flexShrink={0} mt={1} gap={2}>
+        <LoadButton
+          onDrop={onLoad(activeInput)}
+          accept={inputAccept[activeInput]}
+          disabled={isInputLoading}
+          size="sm"
+          variant="outline"
+        >
+          Load file
+        </LoadButton>
+        <Button
+          disabled={!hasActiveInputValue || isInputLoading}
+          onClick={() => onInputChange(activeInput)({ name: "", value: "" })}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <LuX />
+          Clear input
+        </Button>
+      </HStack>
       <ExampleNetworksList
         disabled={isRunning}
         onLoadingChange={setIsInputLoading}
@@ -651,7 +745,7 @@ export default function InfomapOnline() {
     <>
       <PanelHeader
         title="Parameters"
-        description="CLI arguments and common options"
+        description="Set Infomap parameters before running."
         action={<Box display={{ base: "none", lg: "block" }}>{runButton}</Box>}
       />
 
@@ -718,8 +812,8 @@ export default function InfomapOnline() {
         p={4}
       >
         <PanelHeader
-          title="Run output"
-          description="Console logs and generated files"
+          title="Results"
+          description="Inspect the network, run log, and output files."
         />
 
         <Stack
@@ -749,56 +843,114 @@ export default function InfomapOnline() {
             </Button>
             <Box display={{ base: "block", lg: "none" }}>{runButton}</Box>
           </HStack>
-          <ButtonGroup
-            attached
-            variant="outline"
-            size="sm"
-            overflowX="auto"
-            maxW="100%"
+          <Flex
+            align="center"
+            gap={3}
+            justify="space-between"
+            minW={0}
+            w="100%"
+            wrap="wrap"
           >
-            <Button
-              onClick={() => setTab("network")}
-              disabled={tab === "network"}
-              title="Show network preview (N)"
+            <ButtonGroup
+              attached
+              variant="outline"
+              size="sm"
+              flexShrink={0}
+              role="tablist"
             >
-              Network
-              <Kbd ml={1}>N</Kbd>
-            </Button>
-            <Button
-              onClick={() => setTab("console")}
-              disabled={tab === "console"}
-              title="Show console output (C)"
-            >
-              Console
-              <Kbd ml={1}>C</Kbd>
-            </Button>
-            {outputFiles.map((file) => (
               <Button
-                key={file.key}
-                onClick={() => {
-                  setTab("output");
-                  setActiveKey(file.key);
-                }}
-                disabled={tab === "output" && activeKey === file.key}
+                aria-selected={tab === "network"}
+                boxShadow={
+                  tab === "network" ? "inset 0 0 0 1px #b22222" : undefined
+                }
+                color={tab === "network" ? "#b22222" : undefined}
+                onClick={() => setTab("network")}
+                role="tab"
+                title="Show network preview (N)"
               >
-                {file.name}
+                Network
+                <Kbd ml={1}>N</Kbd>
               </Button>
-            ))}
-          </ButtonGroup>
-
-          {tab === "output" && output.activeContent && (
-            <ButtonGroup variant="outline" size="sm" flexShrink={0}>
               <Button
-                onClick={output.downloadActiveContent}
-                disabled={!output.activeContent || isRunning}
+                aria-selected={tab === "console"}
+                boxShadow={
+                  tab === "console" ? "inset 0 0 0 1px #b22222" : undefined
+                }
+                color={tab === "console" ? "#b22222" : undefined}
+                onClick={() => setTab("console")}
+                role="tab"
+                title="Show console output (C)"
               >
-                Download
-              </Button>
-              <Button onClick={store.output.downloadAll} disabled={isRunning}>
-                Download All
+                Console
+                <Kbd ml={1}>C</Kbd>
               </Button>
             </ButtonGroup>
-          )}
+
+            {outputFiles.length > 0 && (
+              <HStack gap={2} justify="flex-end" minW={0}>
+                <ButtonGroup
+                  attached
+                  variant="outline"
+                  size="sm"
+                  overflowX="auto"
+                  role="tablist"
+                >
+                  {visibleOutputFiles.map((file) => (
+                    <Button
+                      key={file.key}
+                      aria-selected={tab === "output" && activeKey === file.key}
+                      boxShadow={
+                        tab === "output" && activeKey === file.key
+                          ? "inset 0 0 0 1px #b22222"
+                          : undefined
+                      }
+                      color={
+                        tab === "output" && activeKey === file.key
+                          ? "#b22222"
+                          : undefined
+                      }
+                      onClick={() => {
+                        setTab("output");
+                        setActiveKey(file.key);
+                      }}
+                      role="tab"
+                    >
+                      {file.name}
+                    </Button>
+                  ))}
+                </ButtonGroup>
+
+                {hiddenOutputFiles.length > 0 && (
+                  <Menu.Root>
+                    <MenuTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        More ({hiddenOutputFiles.length})
+                        <LuChevronDown />
+                      </Button>
+                    </MenuTrigger>
+                    <Portal>
+                      <MenuPositioner>
+                        <MenuContent>
+                          {hiddenOutputFiles.map((file) => (
+                            <MenuItem
+                              key={file.key}
+                              value={file.key}
+                              onClick={() => {
+                                setTab("output");
+                                setActiveKey(file.key);
+                              }}
+                            >
+                              {file.name}
+                            </MenuItem>
+                          ))}
+                        </MenuContent>
+                      </MenuPositioner>
+                    </Portal>
+                  </Menu.Root>
+                )}
+              </HStack>
+            )}
+          </Flex>
         </Stack>
 
         <Box display={tab === "network" ? "flex" : "none"} flex="1" minH={0}>
@@ -823,31 +975,42 @@ export default function InfomapOnline() {
           />
         </Box>
         <Box display={tab === "console" ? "flex" : "none"} flex="1" minH={0}>
-          <Console
-            placeholder="Infomap output will be printed here"
-            flex="1"
-            minH={0}
-            h="auto"
-          >
-            {consoleContent}
-          </Console>
+          <OutputViewer
+            ariaLabel="Infomap console output"
+            content={consoleContent}
+            fontSize="0.6875rem"
+            highlightComments={false}
+            onCopy={() => {}}
+            placeholder="Run Infomap to see the log…"
+          />
         </Box>
         <Box display={tab === "output" ? "flex" : "none"} flex="1" minH={0}>
-          <Field.Root flex="1" minH={0}>
-            <Textarea
-              readOnly
+          <Field.Root flex="1" minH={0} position="relative">
+            {output.activeContent && (
+              <HStack position="absolute" right={3} top={3} gap={2} zIndex={1}>
+                <Button
+                  onClick={output.downloadActiveContent}
+                  disabled={!output.activeContent || isRunning}
+                  size="xs"
+                  variant="surface"
+                >
+                  <LuDownload />
+                  Download file
+                </Button>
+                <Button
+                  onClick={store.output.downloadAll}
+                  disabled={isRunning}
+                  size="xs"
+                  variant="surface"
+                >
+                  <LuFiles />
+                  Download all
+                </Button>
+              </HStack>
+            )}
+            <OutputViewer
+              content={output.activeContent}
               onCopy={onCopyClusters}
-              value={output.activeContent}
-              placeholder="Cluster output will be printed here"
-              spellCheck={false}
-              wrap="off"
-              overflow="auto"
-              resize="none"
-              h="100%"
-              minH={0}
-              variant="outline"
-              bg="gray.50"
-              fontSize="sm"
             />
           </Field.Root>
         </Box>
@@ -899,7 +1062,7 @@ export default function InfomapOnline() {
           >
             <HStack justify="space-between" mb={4} flexShrink={0}>
               <Heading as="h2" size="sm" mb={0}>
-                {mobilePanel === "parameters" ? "Parameters" : "Network input"}
+                {mobilePanel === "parameters" ? "Parameters" : "Input data"}
               </Heading>
               <Button
                 aria-label="Close panel"

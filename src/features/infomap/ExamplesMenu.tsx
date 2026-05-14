@@ -275,29 +275,41 @@ export default function ExampleNetworksList({
         <Flex key={category.label} direction="column" gap={1.5}>
           <Text
             color="gray.500"
-            fontFamily="monospace"
-            fontSize="xs"
-            letterSpacing="0.1em"
+            fontSize="0.6875rem"
+            fontWeight={700}
+            letterSpacing="0.06em"
             textTransform="uppercase"
-            mb={0}
+            mb={0.5}
           >
             {category.label}
           </Text>
-          <Flex gap={1.5} flexWrap="wrap">
+          <Flex as="ul" gap={1} listStyleType="none" m={0} p={0} wrap="wrap">
             {category.networks.map((network) => {
               const isLoading = loading === network.name;
               return (
-                <Button
+                <Flex
+                  as="li"
                   key={network.name}
-                  type="button"
-                  size="xs"
-                  variant="surface"
-                  disabled={disabled || loading !== null}
-                  onClick={() => onSelect(network)}
+                  flex={{ base: "0 0 100%", sm: "0 0 calc(50% - 0.25rem)" }}
+                  minW={0}
                 >
-                  {isLoading && <Spinner size="xs" />}
-                  {network.label}
-                </Button>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    bg="gray.50"
+                    borderColor="gray.200"
+                    disabled={disabled || loading !== null}
+                    justifyContent="flex-start"
+                    onClick={() => onSelect(network)}
+                    px={2}
+                    _hover={{ bg: "white", borderColor: "gray.300" }}
+                    w="100%"
+                  >
+                    {isLoading && <Spinner size="xs" />}
+                    {network.label}
+                  </Button>
+                </Flex>
               );
             })}
           </Flex>

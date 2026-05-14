@@ -3,7 +3,12 @@ import path from "node:path";
 import matter from "gray-matter";
 import { marked } from "marked";
 import { z } from "zod";
-import { normalizeDoi, resolveFigure, resolvePdf } from "./publicationAssets";
+import {
+  getPublicationImageDimensions,
+  normalizeDoi,
+  resolveFigure,
+  resolvePdf,
+} from "./publicationAssets";
 
 const publicationSchema = z.object({
   title: z.string(),
@@ -37,6 +42,8 @@ export type Publication = z.infer<typeof publicationSchema> & {
   body: string;
   bodyHtml: string;
   figureSrc?: string;
+  figureWidth?: number;
+  figureHeight?: number;
   pdfHref?: string;
   doiHref?: string;
   scholarHref: string;
@@ -67,12 +74,16 @@ export function loadPublications(): Publication[] {
     if (!parsed.doi) {
       parsed.category = "Preprint";
     }
+    const figureSrc = resolveFigure(slug, parsed.figure?.src);
+    const figureDimensions = getPublicationImageDimensions(figureSrc);
     return {
       ...parsed,
       slug,
       body,
       bodyHtml: body ? (marked.parse(body, { async: false }) as string) : "",
-      figureSrc: resolveFigure(slug, parsed.figure?.src),
+      figureSrc,
+      figureWidth: figureDimensions?.width,
+      figureHeight: figureDimensions?.height,
       pdfHref: resolvePdf(slug, parsed.pdf),
       doiHref: parsed.doi ? normalizeDoi(parsed.doi) : undefined,
       scholarHref: `https://scholar.google.com/scholar?q=${encodeURIComponent(parsed.title)}`,

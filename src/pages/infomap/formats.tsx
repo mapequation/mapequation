@@ -507,7 +507,13 @@ const FormatsPage: NextPage = () => {
           <Text color="gray.500" fontSize="sm" mb={2}>
             Documentation
           </Text>
-          <Heading as="h1" textStyle="h1" mb={4} id="Formats">
+          <Heading
+            as="h1"
+            textStyle="h1"
+            mb={4}
+            id="Formats"
+            scrollMarginTop="7rem"
+          >
             Prepare network data and read Infomap output
           </Heading>
 
@@ -529,7 +535,7 @@ const FormatsPage: NextPage = () => {
               mb={3}
               minW={0}
             >
-              <Heading as="h2" size="md" id="Input">
+              <Heading as="h2" size="md" id="Input" scrollMarginTop="7rem">
                 Input
               </Heading>
               <Text color="gray.500" fontSize="sm" mb={0} flexShrink={0}>
@@ -572,7 +578,7 @@ const FormatsPage: NextPage = () => {
               mb={3}
               minW={0}
             >
-              <Heading as="h2" size="md" id="Output">
+              <Heading as="h2" size="md" id="Output" scrollMarginTop="7rem">
                 Output
               </Heading>
               <Text color="gray.500" fontSize="sm" mb={0} flexShrink={0}>

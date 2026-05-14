@@ -1,12 +1,12 @@
 import { Box, Button, HStack, Spinner, Text } from "@chakra-ui/react";
 import {
+  type Force,
+  type ForceLink,
   forceCenter,
   forceCollide,
   forceLink,
   forceManyBody,
   forceSimulation,
-  type Force,
-  type ForceLink,
   type Simulation,
   type SimulationLinkDatum,
   type SimulationNodeDatum,
@@ -26,10 +26,10 @@ import { LuDownload, LuMaximize } from "react-icons/lu";
 import {
   buildHierarchicalModuleColors,
   fallbackModuleColor,
-  modulePathFromNodePath,
   type ModuleColorModel,
   type ModuleId,
   type ModuleMap,
+  modulePathFromNodePath,
 } from "./moduleColors";
 import type { PreviewGraph, PreviewNode } from "./parseInfomapPreview";
 
@@ -59,6 +59,12 @@ function hasMatchingModules(
 type ModuleSlice = { moduleId: ModuleId; flow: number };
 
 const labelStrokeWidth = 4;
+const labelMinFontSize = 9;
+const labelMaxFontSize = 16;
+const exportLabelStrokePixelWidth = 14;
+const exportLabelMinPixelFontSize = 64;
+const exportLabelMaxPixelFontSize = 104;
+const exportLabelGapPixel = 18;
 
 function LevelGranularityIcon({ fine }: { fine?: boolean }) {
   return (
@@ -784,9 +790,18 @@ function renderForExport(
   ctx.textAlign = "left";
   ctx.lineJoin = "round";
   ctx.lineCap = "butt";
-  ctx.lineWidth = (labelStrokeWidth * 4) / 3 / scale;
+  ctx.lineWidth = exportLabelStrokePixelWidth / scale;
+  const maxFlow = graph.nodes[0]?.flow ?? 1;
+  const labelFontSize = (node: SimNode) => {
+    const t = Math.sqrt(Math.max(0, node.flow) / Math.max(maxFlow, 1e-9));
+    const pixelFontSize =
+      exportLabelMinPixelFontSize +
+      (exportLabelMaxPixelFontSize - exportLabelMinPixelFontSize) * t;
+    return pixelFontSize / scale;
+  };
+  const labelGap = exportLabelGapPixel / scale;
   for (const node of graph.nodes) {
-    const fontSize = Math.max(10, node.radius * 0.95);
+    const fontSize = labelFontSize(node);
     const slices = coloredByModules
       ? nodeModuleSlices(node, modules, moduleFlows)
       : [];
@@ -796,8 +811,8 @@ function renderForExport(
         ? darkenedModuleColorFor(slices[0].moduleId)
         : "#2D3748";
     ctx.font = `${fontSize}px sans-serif`;
-    const x = (node.x ?? 0) + node.radius + 3;
-    const y = (node.y ?? 0) - node.radius / 3;
+    const x = (node.x ?? 0) + node.radius + labelGap;
+    const y = node.y ?? 0;
     ctx.strokeStyle = "#ffffff";
     ctx.fillStyle = labelColor;
     ctx.strokeText(node.label, x, y);
@@ -1305,10 +1320,8 @@ function NetworkPreviewImpl({
         for (const node of graph.nodes) {
           const x = node.x ?? 0;
           const y = node.y ?? 0;
-          const labelExtent = node.radius * 0.95 * (node.label.length + 3);
           if (x - node.radius < minX) minX = x - node.radius;
-          if (x + node.radius + labelExtent > maxX)
-            maxX = x + node.radius + labelExtent;
+          if (x + node.radius > maxX) maxX = x + node.radius;
           if (y - node.radius < minY) minY = y - node.radius;
           if (y + node.radius > maxY) maxY = y + node.radius;
         }
@@ -1318,6 +1331,22 @@ function NetworkPreviewImpl({
         }
 
         const padding = 40;
+        const nodeOnlyWorldW = maxX - minX + padding * 2;
+        const nodeOnlyWorldH = maxY - minY + padding * 2;
+        const targetMax = 8192;
+        const scaleEstimate =
+          targetMax / Math.max(nodeOnlyWorldW, nodeOnlyWorldH);
+        const maxLabelExtent =
+          (exportLabelMaxPixelFontSize * 0.65) / scaleEstimate;
+        const labelGap = exportLabelGapPixel / scaleEstimate;
+        for (const node of graph.nodes) {
+          const x = node.x ?? 0;
+          const labelExtent = node.label.length * maxLabelExtent + labelGap;
+          if (x + node.radius + labelExtent > maxX) {
+            maxX = x + node.radius + labelExtent;
+          }
+        }
+
         minX -= padding;
         maxX += padding;
         minY -= padding;
@@ -1325,7 +1354,6 @@ function NetworkPreviewImpl({
         const worldW = maxX - minX;
         const worldH = maxY - minY;
 
-        const targetMax = 8192;
         const scale = targetMax / Math.max(worldW, worldH);
         const pixelW = Math.max(1, Math.round(worldW * scale));
         const pixelH = Math.max(1, Math.round(worldH * scale));
@@ -1746,8 +1774,6 @@ function NetworkPreviewImpl({
     context.lineWidth = labelStrokeWidth;
     const skipNumeric = graph.nodes.length > 60;
     const maxFlow = graph.nodes[0]?.flow ?? 1;
-    const minLabelFont = 10;
-    const maxLabelFont = 18;
     const labelBudget =
       zoomLevel < 0.18
         ? 24
@@ -1764,7 +1790,7 @@ function NetworkPreviewImpl({
     }> = [];
     const labelFontSize = (node: SimNode) => {
       const t = Math.sqrt(Math.max(0, node.flow) / Math.max(maxFlow, 1e-9));
-      return minLabelFont + (maxLabelFont - minLabelFont) * t;
+      return labelMinFontSize + (labelMaxFontSize - labelMinFontSize) * t;
     };
     const clamp = (value: number, min: number, max: number) =>
       Math.max(min, Math.min(max, value));
@@ -1819,8 +1845,7 @@ function NetworkPreviewImpl({
       context.font = `${fontSize}px sans-serif`;
       const textWidth = context.measureText(node.label).width;
       const x = labelLeftX(node, textWidth);
-      const y =
-        transformRef.current.y + (node.y ?? 0) * zoomLevel - fontSize * 0.1;
+      const y = transformRef.current.y + (node.y ?? 0) * zoomLevel;
       const labelFocus = focusStrengthFor(node);
       context.strokeStyle = "#ffffff";
       context.fillStyle = labelColorWithFocus(labelColor, labelFocus);
@@ -1840,7 +1865,7 @@ function NetworkPreviewImpl({
         continue;
       }
       const fontSize = labelFontSize(node);
-      const y = sy - fontSize * 0.1;
+      const y = sy;
       context.font = `${fontSize}px sans-serif`;
       const textWidth = context.measureText(node.label).width;
       const x = labelLeftX(node, textWidth);
@@ -1890,7 +1915,7 @@ function NetworkPreviewImpl({
     if (!canvas) return;
 
     const zoomBehavior = zoom<HTMLCanvasElement, unknown>()
-      .scaleExtent([0.01, 8])
+      .scaleExtent([0.01, 20])
       .filter((event) => {
         if (event.type === "dblclick") return false;
         if (event.type === "wheel" && (event.shiftKey || event.altKey))

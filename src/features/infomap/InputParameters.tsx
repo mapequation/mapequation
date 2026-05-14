@@ -32,7 +32,9 @@ export default function InputParameters({
     >
       <Field.Root invalid={hasArgsError} {...props}>
         <Input
-          placeholder="Parameters"
+          aria-label="Infomap parameters"
+          name="infomap-parameters"
+          placeholder="Add parameters…"
           value={args_}
           borderColor={hasArgsError ? "red.600" : undefined}
           _focus={{ borderColor: hasArgsError ? "red.600" : undefined }}

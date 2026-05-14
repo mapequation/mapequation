@@ -205,6 +205,7 @@ const InputParameter = ({ param }: { param: any }) => {
   return (
     <Input
       id={param.long}
+      name={param.long}
       w="5.5rem"
       bg="white"
       borderColor={param.active ? "blue.300" : "gray.300"}
@@ -569,7 +570,8 @@ export default function Parameters() {
         <Input
           aria-label="Search parameters"
           id="parameters-search"
-          placeholder="Search parameters (⌘K)"
+          name="parameters-search"
+          placeholder="Search parameters…"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           onKeyDown={(event) => {

@@ -216,6 +216,9 @@ const PublicationsAccordion = ({
                     <chakra.img
                       src={p.figureSrc}
                       alt={p.figure?.caption ?? p.title}
+                      width={p.figureWidth}
+                      height={p.figureHeight}
+                      loading="lazy"
                       display="block"
                       style={{
                         maxWidth: "100%",
@@ -338,6 +341,9 @@ const PublicationsPage: NextPage<Props> = ({ publications }) => {
                     <chakra.img
                       src={p.figureSrc}
                       alt={p.figure?.caption ?? p.title}
+                      width={p.figureWidth}
+                      height={p.figureHeight}
+                      loading="lazy"
                       display="block"
                       w="100%"
                       h="auto"

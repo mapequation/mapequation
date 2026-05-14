@@ -450,7 +450,13 @@ const InstallPage: NextPage = () => {
           <Text color="gray.500" fontSize="sm" mb={2}>
             Documentation
           </Text>
-          <Heading as="h1" textStyle="h1" mb={4} id="Install">
+          <Heading
+            as="h1"
+            textStyle="h1"
+            mb={4}
+            id="Install"
+            scrollMarginTop="7rem"
+          >
             Install Infomap for Python, R, or build from source
           </Heading>
 
