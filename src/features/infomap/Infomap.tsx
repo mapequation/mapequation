@@ -38,9 +38,9 @@ import useStore from "../../state";
 import { parseCluModules } from "../../state/output";
 import {
   argsRequestOutputFormat,
-  ensureJsonOutput,
+  ensurePreviewOutputs,
 } from "../../state/parameters";
-import type { InputFile, InputName } from "../../state/types";
+import type { InputFile, InputName, OutputKey } from "../../state/types";
 import ExampleNetworksList from "./ExamplesMenu";
 import InputParameters from "./InputParameters";
 import InputTextarea from "./InputTextarea";
@@ -262,7 +262,7 @@ export default function InfomapOnline() {
         if (buffered.length > 0) {
           setInfomapOutput((output) => [...output, ...buffered]);
         }
-        store.output.setContent(content);
+        store.output.setContent(content, hiddenOutputKeysRef.current);
         setOutputChangedAt(Date.now());
         await localforage.setItem("network", {
           timestamp: Date.now(),
@@ -273,6 +273,7 @@ export default function InfomapOnline() {
         setIsRunning(false);
       }),
   );
+  const hiddenOutputKeysRef = useRef<Set<OutputKey>>(new Set());
 
   useEffect(() => {
     const args = new URLSearchParams(window.location.search).get("args");
@@ -453,6 +454,10 @@ export default function InfomapOnline() {
   }, []);
 
   const run = () => {
+    const args = store.params.args;
+    hiddenOutputKeysRef.current = argsRequestOutputFormat(args, "ftree")
+      ? new Set()
+      : new Set<OutputKey>(["ftree", "ftree_states"]);
     store.output.resetContent();
 
     setIsRunning(true);
@@ -463,7 +468,7 @@ export default function InfomapOnline() {
       infomap.run({
         network: store.infomapNetwork.content,
         filename: store.infomapNetwork.filename,
-        args: ensureJsonOutput(store.params.args),
+        args: ensurePreviewOutputs(args),
         files: store.infomapFiles,
       });
     } catch (e) {
@@ -523,6 +528,10 @@ export default function InfomapOnline() {
         : output.numLevels;
   const previewLevelModules = outputWins ? output.levelModules : undefined;
   const previewModuleFlows = outputWins ? output.moduleFlows : undefined;
+  const previewNodePaths = outputWins ? output.nodePaths : undefined;
+  const previewFtree = outputWins
+    ? output.ftree_states || output.ftree
+    : undefined;
   const cluLevelParam = params.getParam("--clu-level");
   const previewSelectedLevel = cluLevelParam.active
     ? Number(cluLevelParam.value)
@@ -972,6 +981,7 @@ export default function InfomapOnline() {
           <NetworkPreview
             codeLength={previewCodeLength}
             directed={Boolean(params.getParam("--directed").active)}
+            ftree={previewFtree}
             levelModules={previewLevelModules}
             loadingState={
               isRunning
@@ -985,6 +995,7 @@ export default function InfomapOnline() {
             networkName={network.name}
             modules={previewModules}
             moduleFlows={previewModuleFlows}
+            nodePaths={previewNodePaths}
             numLevels={previewNumLevels}
             selectedLevel={previewSelectedLevel}
           />

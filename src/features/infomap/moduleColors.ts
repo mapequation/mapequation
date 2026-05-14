@@ -96,18 +96,32 @@ export function buildHierarchicalModuleColors({
       continue;
     }
 
-    const fallbackPathParts: string[] = [];
+    let fallbackPathParts: string[] = [];
     for (let level = 1; level <= activeLevel; level++) {
-      const moduleId =
-        levelModules?.get(level)?.get(nodeId) ??
-        (level === activeLevel ? modules.get(nodeId) : undefined);
+      const moduleId = levelModules?.get(level)?.get(nodeId);
       if (moduleId === undefined) continue;
+      fallbackPathParts = modulePathFromModuleId(moduleId).map(String);
+    }
+    if (fallbackPathParts.length === 0) {
+      fallbackPathParts = modulePathFromModuleId(modules.get(nodeId)).map(
+        String,
+      );
+    }
 
-      fallbackPathParts.push(String(moduleId));
-      const key = fallbackPathParts.join("/");
+    for (let level = 1; level <= fallbackPathParts.length; level++) {
+      const moduleId = fallbackPathParts[level - 1];
+      const key = fallbackPathParts.slice(0, level).join("/");
       ensureNode(key, moduleId, level);
       if (parentKey) colorNodes.get(parentKey)?.children.add(key);
       parentKey = key;
+    }
+    const activeModuleId = modules.get(nodeId);
+    if (activeModuleId !== undefined && fallbackPathParts.length > 0) {
+      ensureNode(
+        fallbackPathParts.join("/"),
+        activeModuleId,
+        fallbackPathParts.length,
+      );
     }
   }
 
@@ -146,6 +160,16 @@ export function modulePathFromNodePath(
 ): ModuleId[] {
   if (!nodePath || nodePath.length < 2) return [];
   return nodePath.slice(0, Math.min(activeLevel, nodePath.length - 1));
+}
+
+export function modulePathFromModuleId(
+  moduleId: ModuleId | undefined,
+): ModuleId[] {
+  if (moduleId === undefined) return [];
+  if (typeof moduleId === "string" && moduleId.includes(":")) {
+    return moduleId.split(":").filter(Boolean);
+  }
+  return [moduleId];
 }
 
 function assignChildColors(

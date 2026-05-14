@@ -32,13 +32,18 @@ import {
   useRef,
   useState,
 } from "react";
-import { LuDownload, LuMaximize } from "react-icons/lu";
+import { LuDownload, LuExpand, LuMaximize, LuMinimize2 } from "react-icons/lu";
+import {
+  parseFtreeLayout,
+  runHierarchicalPrelayout,
+} from "./hierarchicalLayout";
 import {
   buildHierarchicalModuleColors,
   fallbackModuleColor,
   type ModuleColorModel,
   type ModuleId,
   type ModuleMap,
+  modulePathFromModuleId,
   modulePathFromNodePath,
 } from "./moduleColors";
 import type { PreviewGraph, PreviewNode } from "./parseInfomapPreview";
@@ -306,6 +311,47 @@ function buildLayoutModulesByNode(
   return result;
 }
 
+function activeModulesForLevel({
+  activeLevel,
+  levelModules,
+  modules,
+  nodePaths,
+  nodes,
+}: {
+  activeLevel: number;
+  levelModules?: Map<number, ModuleMap>;
+  modules: ModuleMap;
+  nodePaths?: Map<string, number[]>;
+  nodes: { id: string; path?: number[] }[];
+}): ModuleMap {
+  if (nodes.length === 0) return modules;
+
+  const activeModules = new Map<number, ModuleId>();
+  for (const node of nodes) {
+    const nodeId = Number(node.id);
+    if (!Number.isFinite(nodeId)) continue;
+
+    const path = nodePaths?.get(node.id) ?? node.path;
+    if (path && path.length >= 2) {
+      activeModules.set(
+        nodeId,
+        path.slice(0, Math.min(activeLevel, path.length - 1)).join(":"),
+      );
+      continue;
+    }
+
+    let moduleId: ModuleId | undefined;
+    for (let level = activeLevel; level >= 1; level -= 1) {
+      moduleId = levelModules?.get(level)?.get(nodeId);
+      if (moduleId !== undefined) break;
+    }
+    moduleId ??= modules.get(nodeId);
+    if (moduleId !== undefined) activeModules.set(nodeId, moduleId);
+  }
+
+  return activeModules.size > 0 ? activeModules : modules;
+}
+
 function layoutModulesSignature(
   graph: Graph,
   modulesByNode: Map<string, ModuleId>,
@@ -454,6 +500,12 @@ const moduleAttractionStrength = {
   regular: 0.035,
   large: 0.018,
 } as const;
+
+const layoutMode = "hierarchical" as "hierarchical" | "force";
+const hierarchicalLayoutNodeLimit = 10_000;
+const hierarchicalLayoutLinkLimit = 50_000;
+const collisionRadiusMultiplier = 2.2;
+const hierarchicalFinalRelaxAlpha = 0.95;
 
 const dragSimulationAlpha = 0.7;
 const dragSimulationAlphaTarget = 0.32;
@@ -856,27 +908,40 @@ function previewGraphSignature(graph: PreviewGraph) {
   ].join("::");
 }
 
+function textSignature(value: string | undefined) {
+  if (!value) return "";
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) | 0;
+  }
+  return `${value.length}:${hash}`;
+}
+
 function NetworkPreviewImpl({
   codeLength,
   directed = false,
+  ftree,
   levelModules,
   loadingState = null,
   moduleSource = "latest Infomap result",
   networkName,
   modules,
   moduleFlows,
+  nodePaths,
   numLevels,
   previewGraph,
   selectedLevel,
 }: {
   codeLength?: number | null;
   directed?: boolean;
+  ftree?: string;
   levelModules?: Map<number, ModuleMap>;
   loadingState?: "loading" | "running" | null;
   moduleSource?: string;
   networkName?: string;
   modules: ModuleMap;
   moduleFlows?: Map<number, { module: number; flow: number }[]>;
+  nodePaths?: Map<number, number[]>;
   numLevels?: number | null;
   previewGraph: PreviewGraph;
   selectedLevel?: number | null;
@@ -897,6 +962,8 @@ function NetworkPreviewImpl({
   const dimensionsRef = useRef({ width: 0, height: 0, dpr: 1 });
   const frameRef = useRef(0);
   const hoverFrameRef = useRef(0);
+  const fullscreenFitFrameRef = useRef(0);
+  const fullscreenFitAfterMountRef = useRef(false);
   const pendingHoverPointRef = useRef<{
     clientX: number;
     clientY: number;
@@ -910,6 +977,11 @@ function NetworkPreviewImpl({
   const quadtreeRef = useRef<Quadtree<SimNode> | null>(null);
   const maxNodeRadiusRef = useRef(0);
   const levelModulesRef = useRef<typeof levelModules>(undefined);
+  const hierarchicalLayoutKeyRef = useRef("");
+  const hierarchicalLayoutRunIdRef = useRef(0);
+  const hierarchicalLayoutCancelRef = useRef<(() => void) | null>(null);
+  const hierarchicalFinalRelaxFrameRef = useRef(0);
+  const hierarchicalFinalRelaxBaseAlphaDecayRef = useRef<number | null>(null);
   const activeLevelRef = useRef(1);
   const nodeHierarchyPathsRef = useRef<Map<string, ModuleId[]>>(new Map());
   const moduleColorModelRef = useRef<ModuleColorModel>({
@@ -968,12 +1040,17 @@ function NetworkPreviewImpl({
         continue;
       }
       for (let levelIndex = 1; levelIndex <= activeLevel; levelIndex++) {
-        const moduleId =
-          levelMaps?.get(levelIndex)?.get(nodeId) ??
-          (levelIndex === activeLevel
-            ? fallbackModules.get(nodeId)
-            : undefined);
-        if (moduleId !== undefined) path.push(moduleId);
+        const moduleId = levelMaps?.get(levelIndex)?.get(nodeId);
+        if (moduleId !== undefined) {
+          path.length = 0;
+          path.push(...modulePathFromModuleId(moduleId));
+        }
+      }
+      if (path.length === 0) {
+        const moduleId = fallbackModules.get(nodeId);
+        if (moduleId !== undefined) {
+          path.push(...modulePathFromModuleId(moduleId));
+        }
       }
       if (path.length > 0) paths.set(node.id, path);
     }
@@ -1097,11 +1174,34 @@ function NetworkPreviewImpl({
   const [isSummaryCardActive, setIsSummaryCardActive] = useState(false);
   const [level, setLevel] = useState(1);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenTop, setFullscreenTop] = useState(0);
   const parsedKey = useMemo(() => previewGraphSignature(parsed), [parsed]);
   const [initialLayoutReadyKey, setInitialLayoutReadyKey] = useState<
     string | null
   >(null);
   const [initialLayoutProgress, setInitialLayoutProgress] = useState(0);
+  const [hierarchicalLayoutPhase, setHierarchicalLayoutPhase] = useState<
+    "idle" | "layout" | "relax"
+  >("idle");
+  const [hierarchicalLayoutProgress, setHierarchicalLayoutProgress] =
+    useState(0);
+  const ftreeLayout = useMemo(() => parseFtreeLayout(ftree), [ftree]);
+  const ftreeLayoutKey = useMemo(
+    () =>
+      ftreeLayout
+        ? `${ftreeLayout.sections.size}:${ftreeLayout.linkCount}:${textSignature(
+            ftree,
+          )}`
+        : "",
+    [ftree, ftreeLayout],
+  );
+  const layoutNodePaths = useMemo(() => {
+    if (!nodePaths || nodePaths.size === 0) return undefined;
+    return new Map(
+      [...nodePaths].map(([id, path]) => [String(id), path] as const),
+    );
+  }, [nodePaths]);
 
   const levelLocked = selectedLevel !== null && selectedLevel !== undefined;
   const moduleLevelCount = Math.max(1, (numLevels ?? 1) - 1);
@@ -1114,11 +1214,37 @@ function NetworkPreviewImpl({
         : level;
   const sliderLevel = activeLevel && activeLevel > 0 ? activeLevel : 1;
   const levelValueLabel = `${sliderLevel}/${moduleLevelCount}`;
-  const activeModules = levelModules?.get(activeLevel ?? 1) ?? modules;
+  const activeModules = useMemo(
+    () =>
+      activeModulesForLevel({
+        activeLevel: activeLevel ?? 1,
+        levelModules,
+        modules,
+        nodePaths: layoutNodePaths,
+        nodes: parsed.status === "ok" ? parsed.nodes : [],
+      }),
+    [activeLevel, levelModules, layoutNodePaths, modules, parsed],
+  );
   const coloredByModules =
     parsed.status === "ok" && hasMatchingModules(parsed.nodes, activeModules);
   const initialLayoutPending =
     parsed.status === "ok" && initialLayoutReadyKey !== parsedKey;
+  const hierarchicalLayoutExpected =
+    layoutMode === "hierarchical" &&
+    parsed.status === "ok" &&
+    coloredByModules &&
+    initialLayoutReadyKey === parsedKey &&
+    ftreeLayout !== null &&
+    parsed.nodes.length <= hierarchicalLayoutNodeLimit &&
+    ftreeLayout.linkCount <= hierarchicalLayoutLinkLimit &&
+    parsed.nodes.some(
+      (node) => (layoutNodePaths?.get(node.id) ?? node.path ?? []).length > 1,
+    ) &&
+    hierarchicalLayoutKeyRef.current !== `${parsedKey}:${ftreeLayoutKey}`;
+  const hierarchicalLayoutPending =
+    hierarchicalLayoutPhase !== "idle" || hierarchicalLayoutExpected;
+  const layoutOverlayPending =
+    initialLayoutPending || hierarchicalLayoutPending;
   const hasLevelControl =
     coloredByModules && (levelLocked || moduleLevelCount > 1);
   const hasActiveLevelModules = levelModules?.has(activeLevel ?? 1) ?? false;
@@ -1155,6 +1281,45 @@ function NetworkPreviewImpl({
     if (!levelLocked || selectedLevel < 1) return;
     setLevel(selectedLevel);
   }, [levelLocked, selectedLevel]);
+
+  const measureHeaderBottom = () => {
+    const header = document.querySelector("header");
+    return Math.max(0, header?.getBoundingClientRect().bottom ?? 0);
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen((value) => {
+      if (!value) setFullscreenTop(measureHeaderBottom());
+      return !value;
+    });
+  };
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const updateFullscreenTop = () => {
+      setFullscreenTop(measureHeaderBottom());
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsFullscreen(false);
+    };
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    updateFullscreenTop();
+    window.addEventListener("resize", updateFullscreenTop);
+    window.addEventListener("scroll", updateFullscreenTop, { passive: true });
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+      window.removeEventListener("resize", updateFullscreenTop);
+      window.removeEventListener("scroll", updateFullscreenTop);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isFullscreen]);
 
   const requestDraw = () => {
     if (frameRef.current) return;
@@ -1324,6 +1489,31 @@ function NetworkPreviewImpl({
     requestDraw();
   };
 
+  useEffect(() => {
+    if (!fullscreenFitAfterMountRef.current) {
+      fullscreenFitAfterMountRef.current = true;
+      return;
+    }
+
+    if (fullscreenFitFrameRef.current) {
+      window.cancelAnimationFrame(fullscreenFitFrameRef.current);
+      fullscreenFitFrameRef.current = 0;
+    }
+    fullscreenFitFrameRef.current = window.requestAnimationFrame(() => {
+      fullscreenFitFrameRef.current = window.requestAnimationFrame(() => {
+        fullscreenFitFrameRef.current = 0;
+        fitToGraph();
+      });
+    });
+
+    return () => {
+      if (fullscreenFitFrameRef.current) {
+        window.cancelAnimationFrame(fullscreenFitFrameRef.current);
+        fullscreenFitFrameRef.current = 0;
+      }
+    };
+  }, [isFullscreen]);
+
   const downloadPng = () => {
     const graph = graphRef.current;
     if (!graph || graph.nodes.length === 0) return;
@@ -1422,6 +1612,81 @@ function NetworkPreviewImpl({
         finish();
       }
     });
+  };
+
+  const restoreHierarchicalFinalRelaxAlphaDecay = () => {
+    const baseAlphaDecay = hierarchicalFinalRelaxBaseAlphaDecayRef.current;
+    if (baseAlphaDecay === null) return;
+    simulationRef.current?.alphaDecay(baseAlphaDecay);
+    hierarchicalFinalRelaxBaseAlphaDecayRef.current = null;
+  };
+
+  const cancelHierarchicalLayout = () => {
+    hierarchicalLayoutRunIdRef.current += 1;
+    hierarchicalLayoutCancelRef.current?.();
+    hierarchicalLayoutCancelRef.current = null;
+    if (hierarchicalFinalRelaxFrameRef.current) {
+      window.cancelAnimationFrame(hierarchicalFinalRelaxFrameRef.current);
+      hierarchicalFinalRelaxFrameRef.current = 0;
+    }
+    restoreHierarchicalFinalRelaxAlphaDecay();
+    setHierarchicalLayoutPhase("idle");
+    setHierarchicalLayoutProgress(0);
+  };
+
+  const startHierarchicalFinalRelax = (runId: number) => {
+    const graph = graphRef.current;
+    const simulation = simulationRef.current;
+    if (!simulation || !graph) {
+      setHierarchicalLayoutPhase("idle");
+      setHierarchicalLayoutProgress(0);
+      return;
+    }
+
+    const heavyGraph = graph.nodes.length > 1500;
+    const finalTickTotal = heavyGraph ? 100 : 300;
+    const finalTickChunk = finalTickTotal / 10;
+    refreshModularLayoutForces(false);
+    restoreHierarchicalFinalRelaxAlphaDecay();
+    hierarchicalFinalRelaxBaseAlphaDecayRef.current = simulation.alphaDecay();
+    simulation
+      .alpha(hierarchicalFinalRelaxAlpha)
+      .alphaTarget(0)
+      .alphaDecay(1e-3)
+      .stop();
+    setHierarchicalLayoutPhase("relax");
+    setHierarchicalLayoutProgress(0.8);
+    let ticks = 0;
+
+    const step = () => {
+      if (runId !== hierarchicalLayoutRunIdRef.current) return;
+      const nextTicks = Math.min(finalTickTotal, ticks + finalTickChunk);
+      simulation.tick(nextTicks - ticks);
+      ticks = nextTicks;
+      rebuildQuadtree();
+      setHierarchicalLayoutProgress(0.8 + (ticks / finalTickTotal) * 0.2);
+
+      if (ticks < finalTickTotal) {
+        hierarchicalFinalRelaxFrameRef.current =
+          window.requestAnimationFrame(step);
+        return;
+      }
+
+      hierarchicalFinalRelaxFrameRef.current = 0;
+      restoreHierarchicalFinalRelaxAlphaDecay();
+      fitToGraph();
+      setHierarchicalLayoutPhase("idle");
+      setHierarchicalLayoutProgress(1);
+      if (heavyGraph) {
+        simulation.stop();
+        autoFitActiveRef.current = false;
+      } else {
+        simulation.restart();
+      }
+      requestDraw();
+    };
+
+    hierarchicalFinalRelaxFrameRef.current = window.requestAnimationFrame(step);
   };
 
   drawRef.current = draw;
@@ -1975,6 +2240,8 @@ function NetworkPreviewImpl({
   }, []);
 
   useEffect(() => {
+    cancelHierarchicalLayout();
+    hierarchicalLayoutKeyRef.current = "";
     simulationRef.current?.stop();
     simulationRef.current = null;
     linkForceRef.current = null;
@@ -2011,7 +2278,6 @@ function NetworkPreviewImpl({
       : ([30, 12] as const);
     linkDistanceRangeRef.current = linkDistanceRange;
     const chargeStrength = compactGraph ? -30 : -55;
-    const collideMultiplier = compactGraph ? 1.45 : 1.8;
     linkScaleRef.current = linkScale;
     const linkForce = forceLink<SimNode, SimLink>(graph.links)
       .id((node) => node.id)
@@ -2041,7 +2307,7 @@ function NetworkPreviewImpl({
       .force(
         "collide",
         forceCollide<SimNode>().radius(
-          (node) => node.radius * collideMultiplier,
+          (node) => node.radius * collisionRadiusMultiplier,
         ),
       )
       .force("center", forceCenter(0, 0))
@@ -2109,6 +2375,7 @@ function NetworkPreviewImpl({
 
     return () => {
       cancelled = true;
+      cancelHierarchicalLayout();
       simulation.stop();
     };
   }, [parsedKey]);
@@ -2160,6 +2427,85 @@ function NetworkPreviewImpl({
     parsedKey,
   ]);
 
+  useEffect(() => {
+    const graph = graphRef.current;
+    const shouldUseHierarchy =
+      layoutMode === "hierarchical" &&
+      parsed.status === "ok" &&
+      coloredByModules &&
+      initialLayoutReadyKey === parsedKey &&
+      ftreeLayout !== null &&
+      graph !== null &&
+      graph.nodes.length <= hierarchicalLayoutNodeLimit &&
+      ftreeLayout.linkCount <= hierarchicalLayoutLinkLimit &&
+      graph.nodes.some(
+        (node) => (layoutNodePaths?.get(node.id) ?? node.path ?? []).length > 1,
+      );
+
+    if (!shouldUseHierarchy || !graph || !ftreeLayout) {
+      if (!coloredByModules) hierarchicalLayoutKeyRef.current = "";
+      return;
+    }
+
+    const layoutKey = `${parsedKey}:${ftreeLayoutKey}`;
+    if (layoutKey === hierarchicalLayoutKeyRef.current) return;
+
+    cancelHierarchicalLayout();
+    const runId = hierarchicalLayoutRunIdRef.current + 1;
+    hierarchicalLayoutRunIdRef.current = runId;
+    hierarchicalLayoutKeyRef.current = layoutKey;
+    setHierarchicalLayoutPhase("layout");
+    setHierarchicalLayoutProgress(0);
+    simulationRef.current?.stop();
+
+    hierarchicalLayoutCancelRef.current = runHierarchicalPrelayout({
+      ftree: ftreeLayout,
+      isCancelled: () =>
+        runId !== hierarchicalLayoutRunIdRef.current ||
+        draggingRef.current !== null,
+      links: graph.links,
+      nodes: graph.nodes,
+      nodePaths: layoutNodePaths,
+      onComplete: (positions) => {
+        if (runId !== hierarchicalLayoutRunIdRef.current) return;
+        hierarchicalLayoutCancelRef.current = null;
+        if (!positions) {
+          setHierarchicalLayoutPhase("idle");
+          setHierarchicalLayoutProgress(0);
+          return;
+        }
+        for (const node of graph.nodes) {
+          const position = positions.get(node.id);
+          if (!position) continue;
+          node.x = position.x;
+          node.y = position.y;
+          node.vx = 0;
+          node.vy = 0;
+        }
+        startHierarchicalFinalRelax(runId);
+      },
+      onProgress: (progress) => {
+        if (runId !== hierarchicalLayoutRunIdRef.current) return;
+        setHierarchicalLayoutPhase("layout");
+        setHierarchicalLayoutProgress(progress * 0.8);
+      },
+    });
+
+    return () => {
+      if (runId !== hierarchicalLayoutRunIdRef.current) return;
+      hierarchicalLayoutCancelRef.current?.();
+      hierarchicalLayoutCancelRef.current = null;
+    };
+  }, [
+    coloredByModules,
+    ftreeLayout,
+    ftreeLayoutKey,
+    initialLayoutReadyKey,
+    layoutNodePaths,
+    parsed.status,
+    parsedKey,
+  ]);
+
   useLayoutEffect(() => {
     positionHoverCard();
   }, [hover]);
@@ -2195,6 +2541,7 @@ function NetworkPreviewImpl({
     if (!node) return;
     event.preventDefault();
     event.stopPropagation();
+    cancelHierarchicalLayout();
     const point = screenToWorld(event.clientX, event.clientY);
     node.fx = point.x;
     node.fy = point.y;
@@ -2266,11 +2613,16 @@ function NetworkPreviewImpl({
       bg="gray.50"
       borderWidth="1px"
       borderColor="gray.200"
-      borderRadius="md"
+      borderRadius={isFullscreen ? 0 : "md"}
+      bottom={isFullscreen ? 0 : undefined}
       flex="1"
+      left={isFullscreen ? 0 : undefined}
       minH={0}
       overflow="hidden"
-      position="relative"
+      position={isFullscreen ? "fixed" : "relative"}
+      right={isFullscreen ? 0 : undefined}
+      top={isFullscreen ? `${fullscreenTop}px` : undefined}
+      zIndex={isFullscreen ? 40 : undefined}
     >
       <canvas
         ref={canvasRef}
@@ -2293,7 +2645,7 @@ function NetworkPreviewImpl({
           cursor: draggingRef.current ? "grabbing" : hover ? "grab" : "move",
           display: "block",
           height: "100%",
-          opacity: initialLayoutPending ? 0 : 1,
+          opacity: layoutOverlayPending ? 0 : 1,
           touchAction: "none",
           width: "100%",
         }}
@@ -2438,9 +2790,26 @@ function NetworkPreviewImpl({
           <LuMaximize />
           Fit
         </Button>
+        <Button
+          aria-label={
+            isFullscreen
+              ? "Exit fullscreen network preview"
+              : "Fullscreen network preview"
+          }
+          onClick={toggleFullscreen}
+          size="xs"
+          title={
+            isFullscreen
+              ? "Exit fullscreen network preview"
+              : "Fullscreen network preview"
+          }
+          variant="surface"
+        >
+          {isFullscreen ? <LuMinimize2 /> : <LuExpand />}
+        </Button>
       </HStack>
 
-      {(loadingState || initialLayoutPending) && (
+      {(loadingState || layoutOverlayPending) && (
         <HStack
           bg="whiteAlpha.700"
           color="gray.700"
@@ -2459,12 +2828,20 @@ function NetworkPreviewImpl({
               ? "Running Infomap…"
               : loadingState === "loading"
                 ? "Loading network…"
-                : `Preparing layout ${Math.round(initialLayoutProgress * 100)}%`}
+                : hierarchicalLayoutPhase === "layout"
+                  ? `Arranging hierarchy ${Math.round(
+                      hierarchicalLayoutProgress * 100,
+                    )}%`
+                  : hierarchicalLayoutPhase === "relax"
+                    ? `Relaxing layout ${Math.round(
+                        hierarchicalLayoutProgress * 100,
+                      )}%`
+                    : `Preparing layout ${Math.round(initialLayoutProgress * 100)}%`}
           </Text>
         </HStack>
       )}
 
-      {parsed.status !== "ok" && !loadingState && !initialLayoutPending && (
+      {parsed.status !== "ok" && !loadingState && !layoutOverlayPending && (
         <Box
           bg="whiteAlpha.900"
           borderWidth="1px"

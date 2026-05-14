@@ -221,22 +221,38 @@ export function buildNoInfomapArgs(args: string) {
 }
 
 export function ensureJsonOutput(args: string) {
+  return ensureOutputFormats(args, ["json"]);
+}
+
+export function ensurePreviewOutputs(args: string) {
+  return ensureOutputFormats(args, ["json", "ftree"]);
+}
+
+function ensureOutputFormats(args: string, requiredFormats: string[]) {
   const outputOption = /(?:^|\s)(-o|--output)\s+(\S+)/g;
   let foundOutputOption = false;
 
   const nextArgs = args.replace(outputOption, (full, option, value) => {
     foundOutputOption = true;
     const formats = String(value).split(",").filter(Boolean);
-    if (formats.includes("json")) return full;
+    const missingFormats = requiredFormats.filter(
+      (format) => !formats.includes(format),
+    );
+    if (missingFormats.length === 0) return full;
 
-    const nextFormats = [...formats, "json"].join(",");
+    const nextFormats = [...formats, ...missingFormats].join(",");
     return full.replace(`${option} ${value}`, `${option} ${nextFormats}`);
   });
 
-  return foundOutputOption ? nextArgs : `${args} -o json`.trim();
+  return foundOutputOption
+    ? nextArgs
+    : `${args} -o ${requiredFormats.join(",")}`.trim();
 }
 
 export function argsRequestOutputFormat(args: string, format: string) {
+  const flag = `--${format}`;
+  if (new RegExp(`(?:^|\\s)${flag}(?:\\s|$)`).test(args)) return true;
+
   const outputOption = /(?:^|\s)(?:-o|--output)\s+(\S+)/g;
 
   for (const match of args.matchAll(outputOption)) {

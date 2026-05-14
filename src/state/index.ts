@@ -59,7 +59,10 @@ type OutputActions = {
   physicalFiles: ReturnType<typeof physicalFiles>;
   stateFiles: ReturnType<typeof stateFiles>;
   activeFile: ReturnType<typeof outputFiles>[number] | undefined;
-  setContent: (content: OutputContent) => void;
+  setContent: (
+    content: OutputContent,
+    hiddenOutputKeys?: Set<OutputKey>,
+  ) => void;
   resetContent: () => void;
   setActiveKey: (key: OutputKey) => void;
   setDownloaded: (value: boolean) => void;
@@ -268,13 +271,13 @@ export const useInfomapStore = create<InfomapState>((set, get) => {
     physicalFiles: [],
     stateFiles: [],
     activeFile: undefined,
-    setContent: (content) =>
+    setContent: (content, hiddenOutputKeys = new Set()) =>
       set((state) =>
         withDerived({
           ...state,
           output: {
             ...state.output,
-            ...applyOutputContent(state.output, content),
+            ...applyOutputContent(state.output, content, hiddenOutputKeys),
           },
         }),
       ),

@@ -7,9 +7,11 @@ export type OutputState = Record<OutputKey, string> & {
   activeKey: OutputKey;
   codeLength: number | null;
   downloaded: boolean;
+  hiddenOutputKeys: Set<OutputKey>;
   levelModules: Map<number, Map<number, string>>;
   modules: Map<number, number>;
   moduleFlows: ModuleFlowMap;
+  nodePaths: Map<number, number[]>;
   numLevels: number | null;
 };
 
@@ -34,18 +36,24 @@ export const emptyOutput = (): OutputState => ({
   activeKey: "tree",
   codeLength: null,
   downloaded: false,
+  hiddenOutputKeys: new Set(),
   levelModules: new Map(),
   modules: new Map(),
   moduleFlows: new Map(),
+  nodePaths: new Map(),
   numLevels: null,
 });
 
 export function outputCompleted(output: OutputState) {
-  return OUTPUT_FORMATS.some(({ key }) => !!output[key]);
+  return OUTPUT_FORMATS.some(
+    ({ key }) => !!output[key] && !output.hiddenOutputKeys.has(key),
+  );
 }
 
 export function outputFiles(output: OutputState, name: string): OutputFile[] {
-  return OUTPUT_FORMATS.filter(({ key }) => output[key]).map((format) => ({
+  return OUTPUT_FORMATS.filter(
+    ({ key }) => output[key] && !output.hiddenOutputKeys.has(key),
+  ).map((format) => ({
     ...format,
     filename: `${name}${format.suffix}.${format.extension}`,
   }));
@@ -173,6 +181,31 @@ function parseJsonModules(output: OutputState) {
   return modules;
 }
 
+function parseJsonNodePaths(output: OutputState) {
+  const bestByNode = new Map<number, { flow: number; path: number[] }>();
+
+  for (const node of jsonNodes(output)) {
+    const id = Number(node.id);
+    const path = Array.isArray(node.path) ? node.path.map(Number) : [];
+    const flow = Number(node.flow);
+    if (
+      !Number.isFinite(id) ||
+      path.length < 2 ||
+      path.some((part) => !Number.isFinite(part))
+    ) {
+      continue;
+    }
+
+    const finiteFlow = Number.isFinite(flow) ? flow : 1;
+    const previous = bestByNode.get(id);
+    if (!previous || finiteFlow > previous.flow) {
+      bestByNode.set(id, { flow: finiteFlow, path });
+    }
+  }
+
+  return new Map([...bestByNode].map(([id, value]) => [id, value.path]));
+}
+
 function parseJsonLevelModules(output: OutputState) {
   const levels = new Map<number, Map<number, string>>();
   const bestByNodeAndLevel = new Map<
@@ -220,8 +253,9 @@ function parseJsonMetadata(output: OutputState) {
 export function applyOutputContent(
   current: OutputState,
   content: OutputContent,
+  hiddenOutputKeys: Set<OutputKey> = new Set(),
 ): OutputState {
-  const next = { ...current };
+  const next = { ...current, hiddenOutputKeys };
 
   for (const { key } of OUTPUT_FORMATS) {
     const value = content[key];
@@ -234,6 +268,7 @@ export function applyOutputContent(
 
   next.modules = parseJsonModules(next);
   next.moduleFlows = parseJsonModuleFlows(next);
+  next.nodePaths = parseJsonNodePaths(next);
   next.levelModules = parseJsonLevelModules(next);
   const jsonMetadata = parseJsonMetadata(next);
   next.codeLength = jsonMetadata.codeLength;
@@ -249,8 +284,10 @@ export function applyOutputContent(
       "net",
       "states",
       "flow",
-    ].find((key) => content[key as OutputKey]) as OutputKey | undefined) ||
-    "clu";
+    ].find((key) => {
+      const outputKey = key as OutputKey;
+      return content[outputKey] && !hiddenOutputKeys.has(outputKey);
+    }) as OutputKey | undefined) || "clu";
 
   return next;
 }
