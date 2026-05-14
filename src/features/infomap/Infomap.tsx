@@ -399,9 +399,7 @@ export default function InfomapOnline() {
     };
 
     const togglePresetParam = (name: string) => {
-      const param = storeRef.current.params.getParam(name);
-      if (!param) return;
-      storeRef.current.params.toggle(param);
+      storeRef.current.params.toggle(name);
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -745,11 +743,11 @@ export default function InfomapOnline() {
     <>
       <PanelHeader
         title="Parameters"
-        description="Set Infomap parameters before running."
+        description="Edit arguments passed to Infomap."
         action={<Box display={{ base: "none", lg: "block" }}>{runButton}</Box>}
       />
 
-      <Box flexShrink={0} mb={4}>
+      <Box flexShrink={0} mb={2}>
         <InputParameters loading={isRunning} onClick={run} />
       </Box>
 

@@ -39,7 +39,7 @@ type ParamActions = {
   getRef: (name: string) => unknown;
   getParam: (name: string) => InfomapParameter;
   getParamsForGroup: (group: string) => InfomapParameter[];
-  toggle: (param?: InfomapParameter) => void;
+  toggle: (param?: InfomapParameter | string) => void;
   setIncremental: (param: InfomapParameter | undefined, value: number) => void;
   setInput: (param: InfomapParameter | undefined, value: string) => void;
   setOption: (
@@ -133,6 +133,18 @@ export const useInfomapStore = create<InfomapState>((set, get) => {
       }),
     );
   };
+  const updateParams = (
+    updater: (params: InfomapParameter[]) => InfomapParameter[],
+  ) => {
+    set((state) => {
+      const params = updater(state.params.params);
+      const args = rebuildArgs(params);
+      return withDerived({
+        ...state,
+        params: { ...state.params, params, ...args },
+      });
+    });
+  };
 
   const getParam = (name: string) => {
     const param = get().params.params.find((item) => item.long === name);
@@ -149,10 +161,11 @@ export const useInfomapStore = create<InfomapState>((set, get) => {
     getParamsForGroup: (group) =>
       get().params.params.filter((param) => param.group === group),
     toggle: (param) => {
-      if (!param) return;
-      setParams(
-        get().params.params.map((item) =>
-          item.long === param.long ? { ...item, active: !item.active } : item,
+      const long = typeof param === "string" ? param : param?.long;
+      if (!long) return;
+      updateParams((params) =>
+        params.map((item) =>
+          item.long === long ? { ...item, active: !item.active } : item,
         ),
       );
     },

@@ -9,7 +9,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { Select } from "chakra-react-select";
-import type { LabelHTMLAttributes, MouseEvent, Ref } from "react";
+import type { Ref } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { LuMinus, LuPlus, LuSearch, LuX } from "react-icons/lu";
@@ -17,6 +17,7 @@ import useStore from "../../state";
 import type { InfomapParameter } from "../../state/types";
 
 const parameterGroups = ["Input", "Output", "Algorithm", "Accuracy", "About"];
+const parameterControlWidth = "8.5rem";
 
 const normalizeSearch = (value: string) => value.trim().toLowerCase();
 
@@ -28,6 +29,11 @@ const paramShortcut = (long: string): string | undefined =>
   paramShortcuts[long];
 
 type ParameterMatch = "name" | "description" | null;
+
+const stripFlagPrefix = (value: string) => value.replace(/(^|\s)--?/g, "$1");
+
+const parameterLabel = (param: InfomapParameter) =>
+  stripFlagPrefix(param.longString);
 
 const parameterMatchType = (
   param: InfomapParameter,
@@ -142,7 +148,10 @@ const DropdownParameter = ({ param }: { param: any }) => {
   const store = useStore();
 
   const selectStyle = {
-    container: (provided) => ({ ...provided, minW: "10rem" }),
+    container: (provided) => ({
+      ...provided,
+      minW: "10rem",
+    }),
     control: (provided) => ({
       ...provided,
       bg: "white",
@@ -150,6 +159,9 @@ const DropdownParameter = ({ param }: { param: any }) => {
       minH: "1.875rem",
     }),
     dropdownIndicator: (provided) => ({ ...provided, p: 1 }),
+    input: (provided) => ({ ...provided, fontSize: "0.75rem" }),
+    placeholder: (provided) => ({ ...provided, fontSize: "0.75rem" }),
+    singleValue: (provided) => ({ ...provided, fontSize: "0.75rem" }),
     valueContainer: (provided) => ({
       ...provided,
       bg: "white",
@@ -162,7 +174,9 @@ const DropdownParameter = ({ param }: { param: any }) => {
 
   const value = isMulti
     ? param.value.map((v) => ({ label: v, value: v }))
-    : { label: param.value, value: param.value };
+    : param.value
+      ? { label: param.value, value: param.value }
+      : null;
 
   const onChange = (value) => {
     if (!value) {
@@ -206,7 +220,7 @@ const InputParameter = ({ param }: { param: any }) => {
     <Input
       id={param.long}
       name={param.long}
-      w="5.5rem"
+      w={parameterControlWidth}
       bg="white"
       borderColor={param.active ? "blue.300" : "gray.300"}
       borderWidth="1px"
@@ -255,7 +269,7 @@ const FileInputParameter = ({ param }: { param: any }) => {
   const { ref, ...rootProps } = getRootProps();
 
   return (
-    <Button variant="outline" size="xs" asChild>
+    <Button variant="outline" size="xs" w={parameterControlWidth} asChild>
       <label
         ref={ref as Ref<HTMLLabelElement>}
         htmlFor={param.long}
@@ -276,7 +290,7 @@ const ToggleParameter = ({ param }: { param: InfomapParameter }) => {
       id={param.long}
       checked={param.active}
       ariaLabel={param.longString}
-      onChange={() => store.params.toggle(param)}
+      onChange={() => store.params.toggle(param.long)}
     />
   );
 };
@@ -288,17 +302,27 @@ const IncrementalParameter = ({ param }: { param: any }) => {
   const setValue = (value) => store.params.setIncremental(param, value);
 
   return (
-    <ButtonGroup variant="outline" attached size="xs" id={param.long}>
+    <ButtonGroup
+      variant="outline"
+      attached
+      size="xs"
+      id={param.long}
+      w={parameterControlWidth}
+    >
       <IconButton
         aria-label="minus"
+        flex="0 0 2.25rem"
         disabled={value === 0}
         onClick={() => setValue(value - 1)}
       >
         <LuMinus />
       </IconButton>
-      <Button disabled={value === 0}>{stringValue(value)}</Button>
+      <Button disabled={value === 0} flex="1 1 auto">
+        {stringValue(value)}
+      </Button>
       <IconButton
         aria-label="plus"
+        flex="0 0 2.25rem"
         disabled={value === maxValue}
         onClick={() => setValue(value + 1)}
       >
@@ -317,6 +341,9 @@ const ParameterControl = ({ param }: { param: InfomapParameter }) => {
   return <ToggleParameter param={param} />;
 };
 
+const isToggleOnlyParameter = (param: InfomapParameter) =>
+  !param.dropdown && !param.input && !param.incremental && !param.file;
+
 function ParamName({
   param,
   short = false,
@@ -324,24 +351,24 @@ function ParamName({
   param: InfomapParameter;
   short?: boolean;
 }) {
-  const name = short && param.short ? param.shortString : param.longString;
+  const name =
+    short && param.shortString
+      ? stripFlagPrefix(param.shortString)
+      : parameterLabel(param);
 
   return (
     <code
       style={{
-        borderWidth: param.active ? "1px" : 0,
-        paddingBlock: param.active ? "0.1em" : 0,
-        paddingInline: param.active ? "0.35em" : 0,
-        borderRadius: "4px",
-        cursor: "pointer",
-        fontSize: "0.75rem",
-        fontWeight: param.active ? 600 : 500,
+        backgroundColor: "transparent",
+        border: 0,
+        fontSize: "0.78rem",
+        fontWeight: 500,
         lineHeight: 1.4,
+        padding: 0,
         userSelect: "none",
-        color: param.active ? "hsl(206, 73%, 25%)" : "rgb(45, 55, 72)",
-        backgroundColor: param.active ? "hsl(206, 80%, 90%)" : "transparent",
-        borderColor: param.active ? "hsl(206, 80%, 80%)" : "transparent",
+        color: "rgb(45, 55, 72)",
       }}
+      title={param.longString}
     >
       {name}
     </code>
@@ -358,53 +385,6 @@ const ParameterGroup = ({
   query: string;
 }) => {
   const store = useStore();
-
-  const getHeaderProps = (
-    param: InfomapParameter,
-  ): LabelHTMLAttributes<HTMLLabelElement> => {
-    const { active, long, dropdown, input, file, incremental, value } = param;
-
-    if (dropdown) {
-      return {
-        onClick: (event: MouseEvent<HTMLLabelElement>) => {
-          if (active) {
-            event.preventDefault();
-            const defaultValue =
-              typeof param.default === "string" || Array.isArray(param.default)
-                ? param.default
-                : "";
-            return store.params.setOption(param, defaultValue);
-          }
-        },
-      };
-    }
-
-    const labelProps = { htmlFor: long };
-
-    if (incremental) {
-      return {
-        onClick: () =>
-          store.params.setIncremental(param, Number(value) > 0 ? 0 : 1),
-        ...labelProps,
-      };
-    }
-
-    if (input || file) {
-      return {
-        onClick: (event: MouseEvent<HTMLLabelElement>) => {
-          if (!active) return;
-          if (file) {
-            event.preventDefault();
-            return store.params.resetFileParam(param);
-          }
-          store.params.setInput(param, "");
-        },
-        ...labelProps,
-      };
-    }
-
-    return labelProps;
-  };
 
   const matchPriority = (match: ParameterMatch) =>
     match === "name" ? 0 : match === "description" ? 1 : 2;
@@ -434,57 +414,97 @@ const ParameterGroup = ({
         fontWeight={700}
         letterSpacing="0.12em"
         textTransform="uppercase"
-        mt={5}
-        mb={2}
+        mt={4}
+        mb={1.5}
       >
         {group}
       </Text>
       <Box borderTopWidth="1px" borderTopColor="gray.200">
-        {params.map(({ param }, key) => (
-          <HStack
-            key={key}
-            alignItems="center"
-            justifyContent="space-between"
-            flexWrap="wrap"
-            gap={2.5}
-            py={2.5}
-            borderBottomWidth="1px"
-            borderBottomColor="gray.200"
-            _last={{ borderBottomWidth: 0 }}
-          >
-            <Box flex="1 1 14rem" minW={0}>
-              <HStack lineHeight={1.35} gap={1.5}>
-                <Box asChild fontSize="xs">
-                  <label {...getHeaderProps(param)} htmlFor={param.long}>
-                    <ParamName param={param} />
-                  </label>
-                </Box>
-                {paramShortcut(param.long) && (
-                  <Kbd
-                    fontSize="0.65rem"
-                    title={`Press ${paramShortcut(param.long)} to toggle`}
-                  >
-                    {paramShortcut(param.long)}
-                  </Kbd>
-                )}
-              </HStack>
-              <Box color="gray.500" fontSize="xs" lineHeight={1.45} mt={1}>
-                {param.description ? (
-                  <HighlightedText text={param.description} query={query} />
-                ) : null}
-              </Box>
-            </Box>
-            <Box
-              flex="0 0 auto"
-              maxW="100%"
-              minW="4rem"
-              display="flex"
-              justifyContent="flex-end"
+        {params.map(({ param }, key) => {
+          const textToggles = isToggleOnlyParameter(param);
+
+          return (
+            <HStack
+              key={key}
+              alignItems="flex-start"
+              justifyContent="space-between"
+              flexWrap="wrap"
+              gap={2}
+              px={2}
+              py={2}
+              borderBottomWidth="1px"
+              borderBottomColor="gray.200"
+              _last={{ borderBottomWidth: 0 }}
+              _hover={textToggles ? { bg: "gray.50" } : undefined}
             >
-              <ParameterControl param={param} />
-            </Box>
-          </HStack>
-        ))}
+              <Box flex="1 1 13rem" minW={0}>
+                <Box
+                  aria-label={
+                    textToggles ? `Toggle ${param.longString}` : undefined
+                  }
+                  as={textToggles ? "button" : "div"}
+                  bg="transparent"
+                  border={0}
+                  cursor={textToggles ? "pointer" : undefined}
+                  display="block"
+                  onClick={
+                    textToggles
+                      ? () => store.params.toggle(param.long)
+                      : undefined
+                  }
+                  p={0}
+                  textAlign="left"
+                  w="100%"
+                >
+                  <HStack lineHeight={1.35} gap={1.5}>
+                    <Box fontSize="xs">
+                      <ParamName param={param} />
+                    </Box>
+                    {paramShortcut(param.long) && (
+                      <Kbd
+                        fontSize="0.65rem"
+                        title={`Press ${paramShortcut(param.long)} to toggle`}
+                      >
+                        {paramShortcut(param.long)}
+                      </Kbd>
+                    )}
+                    {param.active && (
+                      <Box
+                        aria-label="Active"
+                        bg="blue.500"
+                        borderRadius="full"
+                        boxShadow="0 0 0 2px rgba(49, 130, 206, 0.14)"
+                        h="0.375rem"
+                        title="Active"
+                        w="0.375rem"
+                      />
+                    )}
+                  </HStack>
+                  <Box
+                    color="gray.500"
+                    fontSize="xs"
+                    lineHeight={1.38}
+                    mt={0.5}
+                  >
+                    {param.description ? (
+                      <HighlightedText text={param.description} query={query} />
+                    ) : null}
+                  </Box>
+                </Box>
+              </Box>
+              <Box
+                flex="0 0 auto"
+                maxW="100%"
+                minW="4rem"
+                display="flex"
+                pt={0.5}
+                justifyContent="flex-end"
+              >
+                <ParameterControl param={param} />
+              </Box>
+            </HStack>
+          );
+        })}
       </Box>
     </>
   );
@@ -555,7 +575,7 @@ export default function Parameters() {
 
   return (
     <>
-      <Box position="relative" mb={3}>
+      <Box position="relative" mb={2}>
         <Box
           position="absolute"
           left={3}
@@ -612,20 +632,13 @@ export default function Parameters() {
       <HStack
         alignItems="center"
         justifyContent="space-between"
-        gap={4}
-        py={3}
-        mb={2}
-        borderBottomWidth="1px"
-        borderBottomColor="gray.200"
+        gap={3}
+        py={2}
+        mb={1}
       >
-        <Box minW={0}>
-          <Text color="gray.800" fontSize="xs" fontWeight={700} mb={1}>
-            Advanced parameters
-          </Text>
-          <Text color="gray.500" fontSize="xs" lineHeight={1.4} mb={0}>
-            Show less common options in each group.
-          </Text>
-        </Box>
+        <Text color="gray.700" fontSize="xs" fontWeight={700} mb={0}>
+          Advanced
+        </Text>
         <ToggleSwitch
           id="show-advanced"
           checked={advanced}
