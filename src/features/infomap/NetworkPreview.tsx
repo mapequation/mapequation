@@ -1,4 +1,12 @@
-import { Box, Button, HStack, Spinner, Text } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  HStack,
+  Menu,
+  Portal,
+  Spinner,
+  Text,
+} from "@chakra-ui/react";
 import {
   type Force,
   type ForceLink,
@@ -15,7 +23,9 @@ import { type Quadtree, quadtree } from "d3-quadtree";
 import { select } from "d3-selection";
 import { type ZoomTransform, zoom, zoomIdentity } from "d3-zoom";
 import {
+  type FC,
   memo,
+  type PropsWithChildren,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -32,6 +42,16 @@ import {
   modulePathFromNodePath,
 } from "./moduleColors";
 import type { PreviewGraph, PreviewNode } from "./parseInfomapPreview";
+
+// Chakra v3's Menu compound types omit `children` — runtime accepts it.
+const MenuTrigger = Menu.Trigger as FC<
+  PropsWithChildren<{ asChild?: boolean }>
+>;
+const MenuPositioner = Menu.Positioner as FC<PropsWithChildren>;
+const MenuContent = Menu.Content as FC<PropsWithChildren>;
+const MenuItem = Menu.Item as FC<
+  PropsWithChildren<{ onClick?: () => void; value: string }>
+>;
 
 type SimNode = PreviewNode &
   SimulationNodeDatum & {
@@ -810,7 +830,7 @@ function renderForExport(
       slices.length > 0 && !tied
         ? darkenedModuleColorFor(slices[0].moduleId)
         : "#2D3748";
-    ctx.font = `${fontSize}px sans-serif`;
+    ctx.font = `500 ${fontSize}px sans-serif`;
     const x = (node.x ?? 0) + node.radius + labelGap;
     const y = node.y ?? 0;
     ctx.strokeStyle = "#ffffff";
@@ -1074,6 +1094,7 @@ function NetworkPreviewImpl({
   };
   const parsed = previewGraph;
   const [hover, setHover] = useState<HoverState>(null);
+  const [isSummaryCardActive, setIsSummaryCardActive] = useState(false);
   const [level, setLevel] = useState(1);
   const [isDownloading, setIsDownloading] = useState(false);
   const parsedKey = useMemo(() => previewGraphSignature(parsed), [parsed]);
@@ -1842,7 +1863,7 @@ function NetworkPreviewImpl({
             : nodeModuleId !== undefined
               ? darkenedModuleColorFor(nodeModuleId)
               : "#2D3748";
-      context.font = `${fontSize}px sans-serif`;
+      context.font = `500 ${fontSize}px sans-serif`;
       const textWidth = context.measureText(node.label).width;
       const x = labelLeftX(node, textWidth);
       const y = transformRef.current.y + (node.y ?? 0) * zoomLevel;
@@ -1866,7 +1887,7 @@ function NetworkPreviewImpl({
       }
       const fontSize = labelFontSize(node);
       const y = sy;
-      context.font = `${fontSize}px sans-serif`;
+      context.font = `500 ${fontSize}px sans-serif`;
       const textWidth = context.measureText(node.label).width;
       const x = labelLeftX(node, textWidth);
       const padding = 2;
@@ -2280,18 +2301,25 @@ function NetworkPreviewImpl({
 
       <HStack
         align="center"
-        bg="whiteAlpha.900"
+        bg={isSummaryCardActive ? "white" : "whiteAlpha.900"}
         borderWidth="1px"
         borderColor="gray.200"
         borderRadius="md"
-        boxShadow="sm"
+        boxShadow={isSummaryCardActive ? "sm" : "xs"}
+        cursor="default"
         gap={2}
         left={3}
         maxW="calc(100% - 6rem)"
+        onBlur={() => setIsSummaryCardActive(false)}
+        onFocus={() => setIsSummaryCardActive(true)}
+        onPointerEnter={() => setIsSummaryCardActive(true)}
+        onPointerLeave={() => setIsSummaryCardActive(false)}
+        opacity={isSummaryCardActive ? 1 : 0.7}
         px={3}
         py={2}
         position="absolute"
         top={3}
+        transition="opacity 160ms ease, background-color 160ms ease, box-shadow 160ms ease"
       >
         <Box minW={0}>
           {networkName && (
@@ -2370,18 +2398,37 @@ function NetworkPreviewImpl({
         </Box>
       )}
 
-      <HStack position="absolute" right={3} top={3} gap={2}>
-        <Button
-          aria-label="Download network as PNG"
-          onClick={downloadPng}
-          size="xs"
-          variant="surface"
-          loading={isDownloading}
-          loadingText="PNG"
-        >
-          <LuDownload />
-          PNG
-        </Button>
+      <HStack
+        align={{ base: "stretch", sm: "center" }}
+        flexDirection={{ base: "column", sm: "row" }}
+        gap={2}
+        position="absolute"
+        right={3}
+        top={3}
+        w={{ base: "4.5rem", sm: "max-content" }}
+      >
+        <Menu.Root>
+          <MenuTrigger asChild>
+            <Button
+              aria-label="Download network"
+              size="xs"
+              variant="surface"
+              loading={isDownloading}
+            >
+              <LuDownload />
+            </Button>
+          </MenuTrigger>
+          <Portal>
+            <MenuPositioner>
+              <MenuContent>
+                <MenuItem value="download-png" onClick={downloadPng}>
+                  <LuDownload />
+                  Download PNG
+                </MenuItem>
+              </MenuContent>
+            </MenuPositioner>
+          </Portal>
+        </Menu.Root>
         <Button
           aria-label="Fit network preview"
           onClick={() => fitToGraph()}

@@ -604,19 +604,8 @@ export default function InfomapOnline() {
     (file) => showJsonOutput || !file.key.startsWith("json"),
   );
   const activeOutputFile = outputFiles.find((file) => file.key === activeKey);
-  const visibleOutputFiles =
-    outputFiles.length <= 4
-      ? outputFiles
-      : [
-          ...outputFiles.slice(0, 3),
-          ...(activeOutputFile &&
-          !outputFiles.slice(0, 3).some((file) => file.key === activeKey)
-            ? [activeOutputFile]
-            : []),
-        ];
-  const hiddenOutputFiles = outputFiles.filter(
-    (file) => !visibleOutputFiles.some((visible) => visible.key === file.key),
-  );
+  const selectedOutputFile = activeOutputFile ?? outputFiles[0];
+  const hasMultipleOutputFiles = outputFiles.length > 1;
 
   useEffect(() => {
     if (tab === "output" && outputFiles.length === 0) {
@@ -678,11 +667,13 @@ export default function InfomapOnline() {
               <Button
                 key={key}
                 aria-selected={isActive}
-                boxShadow={isActive ? "inset 0 0 0 1px #b22222" : undefined}
-                color={isActive ? "#b22222" : undefined}
+                bg={isActive ? "gray.100" : undefined}
+                borderColor={isActive ? "gray.300" : undefined}
+                color={isActive ? "gray.900" : undefined}
                 role="tab"
                 type="button"
                 onClick={() => store.setActiveInput(key)}
+                _hover={isActive ? { bg: "gray.100" } : undefined}
               >
                 {hasInput && <LuCheck />}
                 {label}
@@ -707,7 +698,7 @@ export default function InfomapOnline() {
         overflow="auto"
         resize="none"
         flexShrink={0}
-        h="22rem"
+        h={{ base: "11rem", md: "22rem" }}
         variant="outline"
         bg="gray.50"
         fontSize="sm"
@@ -772,8 +763,8 @@ export default function InfomapOnline() {
       }}
       templateColumns={{
         base: "minmax(0, 1fr)",
-        lg: "minmax(28rem, 1fr) minmax(20rem, 34rem)",
-        xl: "minmax(18rem, 22rem) minmax(28rem, 1fr) minmax(20rem, 34rem)",
+        lg: "minmax(28rem, 1fr) 30rem",
+        xl: "22rem minmax(28rem, 1fr) 30rem",
       }}
       templateRows={{
         base: "minmax(0, 1fr)",
@@ -858,78 +849,76 @@ export default function InfomapOnline() {
             >
               <Button
                 aria-selected={tab === "network"}
-                boxShadow={
-                  tab === "network" ? "inset 0 0 0 1px #b22222" : undefined
-                }
-                color={tab === "network" ? "#b22222" : undefined}
+                bg={tab === "network" ? "gray.100" : undefined}
+                borderColor={tab === "network" ? "gray.300" : undefined}
+                color={tab === "network" ? "gray.900" : undefined}
                 onClick={() => setTab("network")}
                 role="tab"
                 title="Show network preview (N)"
+                _hover={tab === "network" ? { bg: "gray.100" } : undefined}
               >
                 Network
-                <Kbd ml={1}>N</Kbd>
+                <Kbd
+                  display={{ base: "none", md: "inline-flex" }}
+                  fontSize="0.65rem"
+                  ml={1}
+                >
+                  N
+                </Kbd>
               </Button>
               <Button
                 aria-selected={tab === "console"}
-                boxShadow={
-                  tab === "console" ? "inset 0 0 0 1px #b22222" : undefined
-                }
-                color={tab === "console" ? "#b22222" : undefined}
+                bg={tab === "console" ? "gray.100" : undefined}
+                borderColor={tab === "console" ? "gray.300" : undefined}
+                color={tab === "console" ? "gray.900" : undefined}
                 onClick={() => setTab("console")}
                 role="tab"
                 title="Show console output (C)"
+                _hover={tab === "console" ? { bg: "gray.100" } : undefined}
               >
                 Console
-                <Kbd ml={1}>C</Kbd>
-              </Button>
-            </ButtonGroup>
-
-            {outputFiles.length > 0 && (
-              <HStack gap={2} justify="flex-end" minW={0}>
-                <ButtonGroup
-                  attached
-                  variant="outline"
-                  size="sm"
-                  overflowX="auto"
-                  role="tablist"
+                <Kbd
+                  display={{ base: "none", md: "inline-flex" }}
+                  fontSize="0.65rem"
+                  ml={1}
                 >
-                  {visibleOutputFiles.map((file) => (
-                    <Button
-                      key={file.key}
-                      aria-selected={tab === "output" && activeKey === file.key}
-                      boxShadow={
-                        tab === "output" && activeKey === file.key
-                          ? "inset 0 0 0 1px #b22222"
-                          : undefined
-                      }
-                      color={
-                        tab === "output" && activeKey === file.key
-                          ? "#b22222"
-                          : undefined
-                      }
-                      onClick={() => {
-                        setTab("output");
-                        setActiveKey(file.key);
-                      }}
-                      role="tab"
-                    >
-                      {file.name}
-                    </Button>
-                  ))}
-                </ButtonGroup>
-
-                {hiddenOutputFiles.length > 0 && (
+                  C
+                </Kbd>
+              </Button>
+              {outputFiles.length > 0 &&
+                (hasMultipleOutputFiles ? (
                   <Menu.Root>
                     <MenuTrigger asChild>
-                      <Button size="sm" variant="outline">
-                        More ({hiddenOutputFiles.length})
+                      <Button
+                        aria-selected={tab === "output"}
+                        bg={tab === "output" ? "gray.100" : undefined}
+                        borderColor={tab === "output" ? "gray.300" : undefined}
+                        color={tab === "output" ? "gray.900" : undefined}
+                        maxW={{ base: "7rem", sm: "9rem" }}
+                        minW={0}
+                        role="tab"
+                        type="button"
+                        _hover={
+                          tab === "output" ? { bg: "gray.100" } : undefined
+                        }
+                      >
+                        <Text
+                          as="span"
+                          overflow="hidden"
+                          textOverflow="ellipsis"
+                          whiteSpace="nowrap"
+                        >
+                          {tab === "output"
+                            ? activeOutputFile?.name || "Output"
+                            : "Output"}
+                        </Text>
                         <LuChevronDown />
                       </Button>
                     </MenuTrigger>
                     <Portal>
                       <MenuPositioner>
                         <MenuContent>
-                          {hiddenOutputFiles.map((file) => (
+                          {outputFiles.map((file) => (
                             <MenuItem
                               key={file.key}
                               value={file.key}
@@ -945,9 +934,36 @@ export default function InfomapOnline() {
                       </MenuPositioner>
                     </Portal>
                   </Menu.Root>
-                )}
-              </HStack>
-            )}
+                ) : (
+                  selectedOutputFile && (
+                    <Button
+                      aria-selected={tab === "output"}
+                      bg={tab === "output" ? "gray.100" : undefined}
+                      borderColor={tab === "output" ? "gray.300" : undefined}
+                      color={tab === "output" ? "gray.900" : undefined}
+                      maxW={{ base: "7rem", sm: "9rem" }}
+                      minW={0}
+                      onClick={() => {
+                        setTab("output");
+                        setActiveKey(selectedOutputFile.key);
+                      }}
+                      role="tab"
+                      size="sm"
+                      variant="outline"
+                      _hover={tab === "output" ? { bg: "gray.100" } : undefined}
+                    >
+                      <Text
+                        as="span"
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                        whiteSpace="nowrap"
+                      >
+                        {selectedOutputFile.name}
+                      </Text>
+                    </Button>
+                  )
+                ))}
+            </ButtonGroup>
           </Flex>
         </Stack>
 
@@ -985,26 +1001,42 @@ export default function InfomapOnline() {
         <Box display={tab === "output" ? "flex" : "none"} flex="1" minH={0}>
           <Field.Root flex="1" minH={0} position="relative">
             {output.activeContent && (
-              <HStack position="absolute" right={3} top={3} gap={2} zIndex={1}>
-                <Button
-                  onClick={output.downloadActiveContent}
-                  disabled={!output.activeContent || isRunning}
-                  size="xs"
-                  variant="surface"
-                >
-                  <LuDownload />
-                  Download file
-                </Button>
-                <Button
-                  onClick={store.output.downloadAll}
-                  disabled={isRunning}
-                  size="xs"
-                  variant="surface"
-                >
-                  <LuFiles />
-                  Download all
-                </Button>
-              </HStack>
+              <Box position="absolute" right={3} top={3} zIndex={1}>
+                <Menu.Root>
+                  <MenuTrigger asChild>
+                    <Button
+                      aria-label="Download output"
+                      disabled={isRunning}
+                      size="xs"
+                      variant="surface"
+                    >
+                      <LuDownload />
+                    </Button>
+                  </MenuTrigger>
+                  <Portal>
+                    <MenuPositioner>
+                      <MenuContent>
+                        <MenuItem
+                          value="download-file"
+                          onClick={output.downloadActiveContent}
+                        >
+                          <LuDownload />
+                          Download file
+                        </MenuItem>
+                        {hasMultipleOutputFiles && (
+                          <MenuItem
+                            value="download-all"
+                            onClick={store.output.downloadAll}
+                          >
+                            <LuFiles />
+                            Download all
+                          </MenuItem>
+                        )}
+                      </MenuContent>
+                    </MenuPositioner>
+                  </Portal>
+                </Menu.Root>
+              </Box>
             )}
             <OutputViewer
               content={output.activeContent}
@@ -1041,6 +1073,7 @@ export default function InfomapOnline() {
             inset={0}
             onClick={() => setMobilePanel(null)}
             position="absolute"
+            zIndex={0}
           />
           <Box
             bg="white"
@@ -1057,11 +1090,9 @@ export default function InfomapOnline() {
             right={mobilePanel === "parameters" ? 0 : undefined}
             top={0}
             w="100%"
+            zIndex={1}
           >
-            <HStack justify="space-between" mb={4} flexShrink={0}>
-              <Heading as="h2" size="sm" mb={0}>
-                {mobilePanel === "parameters" ? "Parameters" : "Input data"}
-              </Heading>
+            <HStack justify="flex-end" mb={2} flexShrink={0}>
               <Button
                 aria-label="Close panel"
                 onClick={() => setMobilePanel(null)}
