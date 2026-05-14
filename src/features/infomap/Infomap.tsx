@@ -727,6 +727,7 @@ export default function InfomapOnline() {
       <ExampleNetworksList
         disabled={isRunning}
         onLoadingChange={setIsInputLoading}
+        onSelectNetwork={() => setMobilePanel(null)}
       />
     </Box>
   );

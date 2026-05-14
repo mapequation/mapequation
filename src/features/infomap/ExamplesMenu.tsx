@@ -218,9 +218,11 @@ const urlCache = new Map<string, string>();
 export default function ExampleNetworksList({
   disabled,
   onLoadingChange,
+  onSelectNetwork,
 }: {
   disabled?: boolean;
   onLoadingChange?: (loading: boolean) => void;
+  onSelectNetwork?: () => void;
 }) {
   const store = useStore();
   const [loading, setLoading] = useState<string | null>(null);
@@ -260,6 +262,7 @@ export default function ExampleNetworksList({
         store.params.toggle(param);
       }
     }
+    onSelectNetwork?.();
   };
 
   return (
