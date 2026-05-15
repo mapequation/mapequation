@@ -1,36 +1,9 @@
 import { Head, Html, Main, NextScript } from "next/document";
 
-// GitHub Pages reserves /infomap for the infomap repository, so that repo can
-// trampoline direct visits through /?redirect_to=/infomap back into this app.
-const githubPagesInfomapRedirectScript = `
-(function () {
-  if (window.location.pathname !== "/") return;
-
-  var target = new URLSearchParams(window.location.search).get("redirect_to");
-  if (!target || !target.startsWith("/") || target.startsWith("//")) return;
-
-  var url = new URL(target, window.location.origin);
-  if (
-    url.origin !== window.location.origin ||
-    (url.pathname !== "/infomap" && !url.pathname.startsWith("/infomap/"))
-  ) {
-    return;
-  }
-
-  window.history.replaceState(null, "", url.pathname + url.search + url.hash);
-})();
-`;
-
 export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        <script
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: Runs before hydration to avoid a GitHub Pages routing collision.
-          dangerouslySetInnerHTML={{
-            __html: githubPagesInfomapRedirectScript,
-          }}
-        />
         <meta
           name="description"
           content="MapEquation - Network community detection using the Map Equation framework"
