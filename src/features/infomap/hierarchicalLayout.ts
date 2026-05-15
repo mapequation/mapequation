@@ -83,6 +83,12 @@ type AnchorObservation = {
   weight: number;
 };
 
+type AnchoredLinkCandidate = {
+  childLocalId: string;
+  outsidePath: string[];
+  weight: number;
+};
+
 type AnchoredTransform = {
   reflectY: boolean;
   rotation: number;
@@ -179,6 +185,7 @@ export function runHierarchicalPrelayout<T extends HierarchicalLayoutNode>({
   hierarchy.root.x = 0;
   hierarchy.root.y = 0;
   const nodePathById = buildNodePathMap(nodes, nodePaths);
+  const anchoredLinkIndex = buildAnchoredLinkIndex(links, nodePathById);
 
   const queue = hierarchy.breadthFirstModules.filter(
     (module) => module.children.length > 0,
@@ -195,8 +202,7 @@ export function runHierarchicalPrelayout<T extends HierarchicalLayoutNode>({
         queue[index],
         ftree,
         hierarchy.modules,
-        links,
-        nodePathById,
+        anchoredLinkIndex,
       );
       index += 1;
     }
@@ -417,8 +423,7 @@ function layoutModuleChildren<T extends HierarchicalLayoutNode>(
   module: HierarchyModule<T>,
   ftree: FtreeLayout,
   modules: Map<string, HierarchyModule<T>>,
-  graphLinks: readonly HierarchicalLayoutGraphLink[],
-  nodePathById: Map<string, string[]>,
+  anchoredLinkIndex: Map<string, AnchoredLinkCandidate[]>,
 ) {
   if (module.children.length === 0) return;
   if (module.children.length === 1) {
@@ -462,8 +467,7 @@ function layoutModuleChildren<T extends HierarchicalLayoutNode>(
     module,
     items,
     modules,
-    graphLinks,
-    nodePathById,
+    anchoredLinkIndex.get(module.key) ?? [],
   );
   const scale = scaleFor(items, module.radius);
   for (const item of items) {
@@ -487,18 +491,24 @@ function buildNodePathMap<T extends HierarchicalLayoutNode>(
   return result;
 }
 
-function anchoredTransformFor<T extends HierarchicalLayoutNode>(
-  module: HierarchyModule<T>,
-  items: HierarchyItem<T>[],
-  modules: Map<string, HierarchyModule<T>>,
+function buildAnchoredLinkIndex(
   graphLinks: readonly HierarchicalLayoutGraphLink[],
   nodePathById: Map<string, string[]>,
 ) {
-  const identity = { reflectY: false, rotation: 0 };
-  if (module.key === "" || graphLinks.length === 0) return identity;
-
-  const itemsByLocalId = new Map(items.map((item) => [item.localId, item]));
-  const observations: AnchorObservation[] = [];
+  const index = new Map<string, AnchoredLinkCandidate[]>();
+  const addCandidate = (
+    modulePath: string[],
+    insidePath: string[],
+    outsidePath: string[],
+    weight: number,
+  ) => {
+    const childLocalId = insidePath[modulePath.length];
+    if (!childLocalId) return;
+    const key = modulePath.join(":");
+    const candidates = index.get(key) ?? [];
+    candidates.push({ childLocalId, outsidePath, weight });
+    index.set(key, candidates);
+  };
 
   for (const link of graphLinks) {
     const sourceId = graphLinkNodeId(link.source);
@@ -509,18 +519,45 @@ function anchoredTransformFor<T extends HierarchicalLayoutNode>(
     const targetPath = nodePathById.get(targetId);
     if (!sourcePath || !targetPath) continue;
 
-    const sourceChild = childLocalIdForModule(sourcePath, module.path);
-    const targetChild = childLocalIdForModule(targetPath, module.path);
-    if (sourceChild && targetChild) continue;
-    if (!sourceChild && !targetChild) continue;
+    const weight = linkWeight(link);
+    for (let depth = 1; depth < sourcePath.length; depth += 1) {
+      const modulePath = sourcePath.slice(0, depth);
+      if (!pathStartsWith(targetPath, modulePath)) {
+        addCandidate(modulePath, sourcePath, targetPath, weight);
+      }
+    }
+    for (let depth = 1; depth < targetPath.length; depth += 1) {
+      const modulePath = targetPath.slice(0, depth);
+      if (!pathStartsWith(sourcePath, modulePath)) {
+        addCandidate(modulePath, targetPath, sourcePath, weight);
+      }
+    }
+  }
 
-    const childLocalId = sourceChild ?? targetChild;
-    if (!childLocalId) continue;
-    const item = itemsByLocalId.get(childLocalId);
+  return index;
+}
+
+function anchoredTransformFor<T extends HierarchicalLayoutNode>(
+  module: HierarchyModule<T>,
+  items: HierarchyItem<T>[],
+  modules: Map<string, HierarchyModule<T>>,
+  candidates: AnchoredLinkCandidate[],
+) {
+  const identity = { reflectY: false, rotation: 0 };
+  if (module.key === "" || candidates.length === 0) return identity;
+
+  const itemsByLocalId = new Map(items.map((item) => [item.localId, item]));
+  const observations: AnchorObservation[] = [];
+
+  for (const candidate of candidates) {
+    const item = itemsByLocalId.get(candidate.childLocalId);
     if (!item) continue;
 
-    const outsidePath = sourceChild ? targetPath : sourcePath;
-    const anchor = anchorPositionForPath(outsidePath, module, modules);
+    const anchor = anchorPositionForPath(
+      candidate.outsidePath,
+      module,
+      modules,
+    );
     if (!anchor) continue;
 
     const localX = item.x ?? 0;
@@ -535,7 +572,7 @@ function anchoredTransformFor<T extends HierarchicalLayoutNode>(
       anchorY,
       localX,
       localY,
-      weight: linkWeight(link),
+      weight: candidate.weight,
     });
   }
 
@@ -591,12 +628,12 @@ function graphLinkNodeId(value: HierarchicalLayoutGraphLink["source"]) {
   return typeof value === "string" ? value : value.id;
 }
 
-function childLocalIdForModule(path: string[], modulePath: string[]) {
-  if (path.length <= modulePath.length) return null;
-  for (let index = 0; index < modulePath.length; index += 1) {
-    if (path[index] !== modulePath[index]) return null;
+function pathStartsWith(path: string[], prefix: string[]) {
+  if (path.length < prefix.length) return false;
+  for (let index = 0; index < prefix.length; index += 1) {
+    if (path[index] !== prefix[index]) return false;
   }
-  return path[modulePath.length] ?? null;
+  return true;
 }
 
 function anchorPositionForPath<T extends HierarchicalLayoutNode>(

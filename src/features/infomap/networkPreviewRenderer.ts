@@ -133,7 +133,7 @@ function sharedPrefixLength(a: ModuleId[], b: ModuleId[]) {
   return shared;
 }
 
-function computeModuleCentroids(
+export function computeModuleCentroids(
   nodes: { id: string; x?: number; y?: number }[],
   moduleFlows?: ModuleFlowMap,
   modules?: Map<number, ModuleId>,
@@ -217,7 +217,7 @@ export function nodeModuleSlices(
 export function selectedHoverModuleIds(
   node: SimNode,
   point: { x: number; y: number },
-  nodes: SimNode[],
+  moduleCentroids: Map<ModuleId, { x: number; y: number }>,
   modules: Map<number, ModuleId>,
   moduleFlows?: ModuleFlowMap,
 ): ModuleId[] | undefined {
@@ -236,9 +236,7 @@ export function selectedHoverModuleIds(
 
   const total = slices.reduce((acc, slice) => acc + slice.flow, 0) || 1;
   const dominant = slices[0];
-  const centroid = computeModuleCentroids(nodes, moduleFlows, modules).get(
-    dominant.moduleId,
-  );
+  const centroid = moduleCentroids.get(dominant.moduleId);
   let targetAngle = -Math.PI / 2;
   if (centroid && (centroid.x !== nx || centroid.y !== ny)) {
     targetAngle = Math.atan2(centroid.y - ny, centroid.x - nx);

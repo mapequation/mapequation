@@ -46,6 +46,7 @@ import InputParameters from "./InputParameters";
 import InputTextarea from "./InputTextarea";
 import LoadButton from "./LoadButton";
 import NetworkPreview from "./NetworkPreview";
+import type { ModuleMap } from "./moduleColors";
 import Parameters from "./Parameters";
 import {
   errorGraph,
@@ -106,6 +107,30 @@ function parseEvaluationMetadata(content: Record<string, unknown>) {
     codeLength: Number.isFinite(codeLength) ? codeLength : null,
     numLevels: Number.isFinite(numLevels) ? numLevels : null,
   };
+}
+
+function previewNodeIdSet(previewGraph: PreviewGraph) {
+  if (previewGraph.status !== "ok") return new Set<string>();
+  return new Set(previewGraph.nodes.map((node) => node.id));
+}
+
+function modulesMatchPreviewNodes(
+  modules: Map<number, unknown>,
+  previewNodeIds: Set<string>,
+) {
+  if (modules.size === 0 || previewNodeIds.size === 0) return false;
+  for (const id of modules.keys()) {
+    if (previewNodeIds.has(String(id))) return true;
+  }
+  return false;
+}
+
+function textSignature(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) | 0;
+  }
+  return `${value.length}:${hash}`;
 }
 
 function OutputViewer({
@@ -211,6 +236,8 @@ export default function InfomapOnline() {
   );
   const [outputChangedAt, setOutputChangedAt] = useState(0);
   const [clusterChangedAt, setClusterChangedAt] = useState(0);
+  const [outputNetworkSignature, setOutputNetworkSignature] = useState("");
+  const pendingOutputNetworkSignatureRef = useRef("");
   const drainOutputBuffer = () => {
     const buffered = outputBufferRef.current;
     outputBufferRef.current = [];
@@ -239,7 +266,6 @@ export default function InfomapOnline() {
     errorGraph("Parsing network…"),
   );
   const [isPreviewParsing, setIsPreviewParsing] = useState(false);
-  const [previewInfomap] = useState(() => new Infomap());
   const previewRunIdRef = useRef(0);
   const previewTimeoutRef = useRef<number | null>(null);
 
@@ -262,6 +288,7 @@ export default function InfomapOnline() {
         if (buffered.length > 0) {
           setInfomapOutput((output) => [...output, ...buffered]);
         }
+        setOutputNetworkSignature(pendingOutputNetworkSignatureRef.current);
         store.output.setContent(content, hiddenOutputKeysRef.current);
         setOutputChangedAt(Date.now());
         await localforage.setItem("network", {
@@ -293,6 +320,7 @@ export default function InfomapOnline() {
     drainOutputBuffer();
     setInfomapOutput([]);
     store.output.resetContent();
+    setOutputNetworkSignature("");
     setPreviewGraph(errorGraph("Loading network…"));
     setIsPreviewParsing(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -302,6 +330,7 @@ export default function InfomapOnline() {
     if (previewTimeoutRef.current !== null) {
       window.clearTimeout(previewTimeoutRef.current);
     }
+    const runId = ++previewRunIdRef.current;
     const trimmed = networkValue?.trim() ?? "";
     if (!trimmed) {
       setPreviewGraph(errorGraph("Add a network to preview it here."));
@@ -309,7 +338,7 @@ export default function InfomapOnline() {
       return;
     }
     previewTimeoutRef.current = window.setTimeout(() => {
-      const runId = ++previewRunIdRef.current;
+      const previewInfomap = new Infomap();
       setIsPreviewParsing(true);
       const previewArgs = [
         "--no-infomap",
@@ -347,6 +376,9 @@ export default function InfomapOnline() {
       if (previewTimeoutRef.current !== null) {
         window.clearTimeout(previewTimeoutRef.current);
         previewTimeoutRef.current = null;
+      }
+      if (previewRunIdRef.current === runId) {
+        previewRunIdRef.current += 1;
       }
     };
   }, [networkValue, networkName, directedActive]);
@@ -459,12 +491,16 @@ export default function InfomapOnline() {
       ? new Set()
       : new Set<OutputKey>(["ftree", "ftree_states"]);
     store.output.resetContent();
+    setOutputNetworkSignature("");
 
     setIsRunning(true);
     drainOutputBuffer();
     setInfomapOutput([]);
 
     try {
+      pendingOutputNetworkSignatureRef.current = textSignature(
+        store.infomapNetwork.content,
+      );
       infomap.run({
         network: store.infomapNetwork.content,
         filename: store.infomapNetwork.filename,
@@ -494,12 +530,22 @@ export default function InfomapOnline() {
     () => parseCluModules(clusterData.value),
     [clusterData.value],
   );
+  const previewNodeIds = useMemo(
+    () => previewNodeIdSet(previewGraph),
+    [previewGraph],
+  );
+  const currentNetworkSignature = useMemo(
+    () => textSignature(network.value),
+    [network.value],
+  );
   const outputMatchesPreview =
-    output.modules.size > 0 &&
-    [...output.modules.keys()].some((id) => network.value.includes(String(id)));
-  const clusterMatchesPreview =
-    clusterModules.size > 0 &&
-    [...clusterModules.keys()].some((id) => network.value.includes(String(id)));
+    outputNetworkSignature === currentNetworkSignature &&
+    modulesMatchPreviewNodes(output.modules, previewNodeIds);
+  const clusterMatchesPreview = modulesMatchPreviewNodes(
+    clusterModules,
+    previewNodeIds,
+  );
+  const emptyPreviewModules = useMemo<ModuleMap>(() => new Map(), []);
   const outputWins =
     outputMatchesPreview &&
     (!clusterMatchesPreview || outputChangedAt >= clusterChangedAt);
@@ -508,7 +554,7 @@ export default function InfomapOnline() {
     ? output.modules
     : clusterWins
       ? clusterModules
-      : output.modules;
+      : emptyPreviewModules;
   const previewModuleSource = outputWins
     ? "latest Infomap result"
     : clusterWins
@@ -519,13 +565,13 @@ export default function InfomapOnline() {
       ? output.codeLength
       : clusterWins && clusterEvaluation.codeLength !== null
         ? clusterEvaluation.codeLength
-        : output.codeLength;
+        : null;
   const previewNumLevels =
     outputWins && output.numLevels !== null
       ? output.numLevels
       : clusterWins && clusterEvaluation.numLevels !== null
         ? clusterEvaluation.numLevels
-        : output.numLevels;
+        : null;
   const previewLevelModules = outputWins ? output.levelModules : undefined;
   const previewModuleFlows = outputWins ? output.moduleFlows : undefined;
   const previewNodePaths = outputWins ? output.nodePaths : undefined;

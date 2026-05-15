@@ -46,6 +46,7 @@ import {
 } from "./moduleColors";
 import {
   createNetworkPreviewExportCanvas,
+  computeModuleCentroids,
   type ModuleColorResolver,
   nodeModuleSlices,
   renderNetworkPreviewFrame,
@@ -439,12 +440,40 @@ function previewGraphSignature(graph: PreviewGraph) {
     return `${graph.status}:${graph.message}`;
   }
 
+  let hash = 0;
+  const add = (part: unknown) => {
+    const value = String(part);
+    for (let index = 0; index < value.length; index += 1) {
+      hash = (hash * 31 + value.charCodeAt(index)) | 0;
+    }
+    hash = (hash * 31 + 31) | 0;
+  };
+
+  add(graph.status);
+  add(graph.isStateNetwork ? "states" : "physical");
+  add(graph.numLevels);
+  for (const node of graph.nodes) {
+    add(node.id);
+    add(node.label);
+    add(node.flow);
+    add(node.degree);
+    add(node.path?.join(":") ?? "");
+  }
+  for (const link of graph.links) {
+    add(link.source);
+    add(link.target);
+    add(link.flow);
+    add(link.weight);
+    add(link.directed ? 1 : 0);
+  }
+
   return [
     graph.status,
     graph.isStateNetwork ? "states" : "physical",
     graph.nodes.length,
     graph.links.length,
     graph.numLevels,
+    hash,
   ].join("::");
 }
 
@@ -528,6 +557,9 @@ function NetworkPreviewImpl({
     colorByModule: new Map(),
   });
   const moduleColorCacheRef = useRef<Map<ModuleId, string>>(new Map());
+  const moduleCentroidsRef = useRef<Map<ModuleId, { x: number; y: number }>>(
+    new Map(),
+  );
 
   const clearModuleColorCaches = () => {
     moduleColorCacheRef.current.clear();
@@ -592,6 +624,19 @@ function NetworkPreviewImpl({
       nodes: graph.nodes,
     });
     clearModuleColorCaches();
+  };
+
+  const rebuildModuleCentroids = () => {
+    const graph = graphRef.current;
+    if (!graph || !coloredByModulesRef.current || !moduleFlowsRef.current) {
+      moduleCentroidsRef.current = new Map();
+      return;
+    }
+    moduleCentroidsRef.current = computeModuleCentroids(
+      graph.nodes,
+      moduleFlowsRef.current,
+      modulesRef.current,
+    );
   };
 
   const refreshModularLayoutForces = (restart = false) => {
@@ -703,8 +748,17 @@ function NetworkPreviewImpl({
       Math.min(anchorY, viewportBottom - cardHeight / 2),
     );
     card.dataset.side = side;
-    card.style.left = `${left}px`;
-    card.style.top = `${centerY}px`;
+    const alreadyPositioned = card.dataset.positioned === "true";
+    if (!alreadyPositioned) {
+      card.style.transition = "none";
+    }
+    card.style.transform = `translate3d(${left}px, ${centerY}px, 0) translateY(-50%)`;
+    if (!alreadyPositioned) {
+      card.dataset.positioned = "true";
+      window.requestAnimationFrame(() => {
+        card.style.transition = "";
+      });
+    }
   };
   const parsed = previewGraph;
   const [hover, setHover] = useState<HoverState>(null);
@@ -911,12 +965,24 @@ function NetworkPreviewImpl({
     return nearest;
   };
 
+  const isNodeUnderPointer = (
+    node: SimNode,
+    clientX: number,
+    clientY: number,
+  ) => {
+    const point = screenToWorld(clientX, clientY);
+    const hitRadius = 18 / transformRef.current.k;
+    const dx = (node.x ?? 0) - point.x;
+    const dy = (node.y ?? 0) - point.y;
+    return Math.sqrt(dx * dx + dy * dy) <= node.radius + hitRadius;
+  };
+
   const hoverModuleIdsFor = (node: SimNode, point: { x: number; y: number }) =>
     coloredByModules
       ? selectedHoverModuleIds(
           node,
           point,
-          graphRef.current?.nodes ?? [],
+          moduleCentroidsRef.current,
           activeModules,
           moduleFlowsRef.current,
         )
@@ -972,6 +1038,17 @@ function NetworkPreviewImpl({
     }
 
     if (clientX === undefined || clientY === undefined) return;
+    const currentHover = hoverRef.current;
+    if (
+      currentHover &&
+      isNodeUnderPointer(currentHover.node, clientX, clientY)
+    ) {
+      currentHover.x = clientX;
+      currentHover.y = clientY;
+      positionHoverCard();
+      requestDraw();
+      return;
+    }
     updateHoverAt(clientX, clientY);
     if (hoverRef.current) positionHoverCard();
   };
@@ -1166,6 +1243,7 @@ function NetworkPreviewImpl({
       simulation.tick(nextTicks - ticks);
       ticks = nextTicks;
       rebuildQuadtree();
+      rebuildModuleCentroids();
       setHierarchicalLayoutProgress(0.8 + (ticks / finalTickTotal) * 0.2);
 
       if (ticks < finalTickTotal) {
@@ -1301,6 +1379,7 @@ function NetworkPreviewImpl({
     layoutModulesSignatureRef.current = "";
     graphRef.current = null;
     quadtreeRef.current = null;
+    moduleCentroidsRef.current = new Map();
     clearModuleColorCaches();
     hoverRef.current = null;
     setHover(null);
@@ -1316,6 +1395,7 @@ function NetworkPreviewImpl({
     graphRef.current = graph;
     rebuildNodeHierarchyPaths();
     rebuildModuleColors();
+    rebuildModuleCentroids();
     autoFitActiveRef.current = true;
     let tickCount = 0;
     const weights = graph.links.map((link) => link.weight);
@@ -1380,18 +1460,23 @@ function NetworkPreviewImpl({
       simulation.alphaDecay(baseAlphaDecay);
       refreshModularLayoutForces(false);
       rebuildQuadtree();
+      rebuildModuleCentroids();
       fitToGraph();
       setInitialLayoutReadyKey(parsedKey);
       simulation
         .on("tick", () => {
           tickCount += 1;
-          if (tickCount % 10 === 0) rebuildQuadtree();
+          if (tickCount % 10 === 0) {
+            rebuildQuadtree();
+            rebuildModuleCentroids();
+          }
           if (hoverRef.current) positionHoverCard();
           requestDraw();
         })
         .on("end", () => {
           autoFitActiveRef.current = false;
           rebuildQuadtree();
+          rebuildModuleCentroids();
           requestDraw();
         });
 
@@ -1441,6 +1526,7 @@ function NetworkPreviewImpl({
       rebuildNodeHierarchyPaths();
       if (graph) {
         for (const link of graph.links) link.sharedModule = undefined;
+        rebuildModuleCentroids();
         if (initialLayoutReadyKey === parsedKey) {
           refreshModularLayoutForces(false);
         }
@@ -1463,6 +1549,7 @@ function NetworkPreviewImpl({
     } else {
       moduleColorModelRef.current = { colorByModule: new Map() };
     }
+    rebuildModuleCentroids();
     rebuildNodeHierarchyPaths();
     if (initialLayoutReadyKey === parsedKey) {
       refreshModularLayoutForces(true);
@@ -1717,7 +1804,7 @@ function NetworkPreviewImpl({
         onFocus={() => setIsSummaryCardActive(true)}
         onPointerEnter={() => setIsSummaryCardActive(true)}
         onPointerLeave={() => setIsSummaryCardActive(false)}
-        opacity={isSummaryCardActive ? 1 : 0.7}
+        opacity={{ base: 1, md: isSummaryCardActive ? 1 : 0.7 }}
         px={3}
         py={2}
         position="absolute"
@@ -1741,14 +1828,24 @@ function NetworkPreviewImpl({
             links
           </Text>
           {coloredByModules && (
-            <Text color="gray.600" fontSize="xs" mb={0}>
+            <Text
+              color="gray.600"
+              display={{ base: "none", md: "block" }}
+              fontSize="xs"
+              mb={0}
+            >
               {moduleLabel}
               {numLevels ? ` · ${numLevels} levels` : ""}
               {codeLengthText ? ` · ${codeLengthText}` : ""}
             </Text>
           )}
           {!coloredByModules && (
-            <Text color="gray.500" fontSize="xs" mb={0}>
+            <Text
+              color="gray.500"
+              display={{ base: "none", md: "block" }}
+              fontSize="xs"
+              mb={0}
+            >
               {statusText}
             </Text>
           )}
@@ -1928,9 +2025,17 @@ function NetworkPreviewImpl({
           position="fixed"
           px={2.5}
           py={2}
-          transform="translateY(-50%)"
+          left={0}
+          top={0}
+          transform="translate3d(0, 0, 0) translateY(-50%)"
           zIndex={10}
           css={{
+            transition:
+              "transform 90ms ease-out, width 90ms ease-out, min-width 90ms ease-out, max-width 90ms ease-out",
+            willChange: "transform, width",
+            "@media (prefers-reduced-motion: reduce)": {
+              transition: "none",
+            },
             "&::before": {
               background: "var(--chakra-colors-gray-900)",
               content: '""',
