@@ -9,6 +9,7 @@ export default function Document() {
           content="MapEquation - Network community detection using the Map Equation framework"
         />
         <meta name="author" content="" />
+        <meta name="theme-color" content="#BFB7AD" />
 
         <meta property="og:title" content="MapEquation" />
         <meta property="og:site_name" content="mapequation.org" />
