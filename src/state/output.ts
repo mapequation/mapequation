@@ -44,12 +44,6 @@ export const emptyOutput = (): OutputState => ({
   numLevels: null,
 });
 
-export function outputCompleted(output: OutputState) {
-  return OUTPUT_FORMATS.some(
-    ({ key }) => !!output[key] && !output.hiddenOutputKeys.has(key),
-  );
-}
-
 export function outputFiles(output: OutputState, name: string): OutputFile[] {
   return OUTPUT_FORMATS.filter(
     ({ key }) => output[key] && !output.hiddenOutputKeys.has(key),
@@ -82,10 +76,10 @@ export function parseCluModules(clu: string) {
   return modules;
 }
 
-export type ModuleFlow = { module: number; flow: number };
+type ModuleFlow = { module: number; flow: number };
 export type ModuleFlowMap = Map<number, ModuleFlow[]>;
 
-export function parseCluModuleFlows(clu: string): ModuleFlowMap {
+function parseCluModuleFlows(clu: string): ModuleFlowMap {
   const result: ModuleFlowMap = new Map();
   if (!clu) return result;
 

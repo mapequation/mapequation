@@ -91,4 +91,3 @@ export const flowDemoLinks: FlowDemoLink[] = [
 ];
 
 export const flowDemoScheme = ["#EBC384", "#DFDDA2", "#B4CCDF", "#E68C6C"];
-export const flowDemoSchemeAlt = ["#ECA770", "#ADB580", "#82A3C9", "#C2554A"];

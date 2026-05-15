@@ -121,7 +121,7 @@ function withDerived(state: InfomapState): InfomapState {
   return state;
 }
 
-export const useInfomapStore = create<InfomapState>((set, get) => {
+const useInfomapStore = create<InfomapState>((set, get) => {
   const rebuildArgs = (params: InfomapParameter[]) => {
     const args = buildArgs(params);
     return { args, noInfomapArgs: buildNoInfomapArgs(args) };
@@ -361,7 +361,5 @@ export const useInfomapStore = create<InfomapState>((set, get) => {
       ),
   });
 });
-
-export const store = useInfomapStore.getState();
 
 export default useInfomapStore;

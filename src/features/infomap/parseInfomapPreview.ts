@@ -1,7 +1,7 @@
 import type { Result } from "@mapequation/infomap";
 
-export const NETWORK_PREVIEW_NODE_LIMIT = 50_000;
-export const NETWORK_PREVIEW_LINK_LIMIT = 200_000;
+const NETWORK_PREVIEW_NODE_LIMIT = 50_000;
+const NETWORK_PREVIEW_LINK_LIMIT = 200_000;
 
 export type PreviewNode = {
   id: string;
@@ -11,7 +11,7 @@ export type PreviewNode = {
   path?: number[];
 };
 
-export type PreviewLink = {
+type PreviewLink = {
   source: string;
   target: string;
   flow: number;

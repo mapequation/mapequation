@@ -104,7 +104,7 @@ export function getArgSpec(params: InfomapParameter[]) {
   return spec;
 }
 
-export function paramToString(param: InfomapParameter) {
+function paramToString(param: InfomapParameter) {
   if (param.longType) {
     switch (param.longType) {
       case "list":
@@ -218,10 +218,6 @@ export function buildNoInfomapArgs(args: string) {
 
   noInfomapArgs += " --silent --no-infomap -o flow";
   return noInfomapArgs.trim();
-}
-
-export function ensureJsonOutput(args: string) {
-  return ensureOutputFormats(args, ["json"]);
 }
 
 export function ensurePreviewOutputs(args: string) {

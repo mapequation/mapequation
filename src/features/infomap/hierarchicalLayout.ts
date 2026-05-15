@@ -7,13 +7,13 @@ import {
   type SimulationNodeDatum,
 } from "d3-force";
 
-export type FtreeLayoutLink = {
+type FtreeLayoutLink = {
   source: string;
   target: string;
   weight: number;
 };
 
-export type FtreeLayoutSection = {
+type FtreeLayoutSection = {
   enterFlow: number;
   exitFlow: number;
   links: FtreeLayoutLink[];
