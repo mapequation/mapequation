@@ -1,6 +1,6 @@
 import { Box, chakra, Link } from "@chakra-ui/react";
 import NextLink from "next/link";
-import { CopyButton } from "./CopyButton";
+import { CopyButton } from "../components/CopyButton";
 
 const SNIPPET = `import networkx as nx
 from infomap import find_communities

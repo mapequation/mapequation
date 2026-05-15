@@ -13,10 +13,10 @@ import type { GetStaticProps, NextPage } from "next";
 import NextLink from "next/link";
 import { LuArrowRight } from "react-icons/lu";
 import { PrimaryButton } from "../shared/components/PrimaryButton";
-import { QuickStart } from "../shared/components/QuickStart";
 import FlowDemo from "../shared/compounds/FlowDemo";
 import NewsList from "../shared/compounds/NewsList";
 import { PortalSection } from "../shared/compounds/portal";
+import { QuickStart } from "../shared/compounds/QuickStart";
 import { loadNews, type NewsItem } from "../shared/loadNews";
 
 const PORTAL_CARDS = [
