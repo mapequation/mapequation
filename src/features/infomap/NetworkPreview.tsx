@@ -685,11 +685,26 @@ function NetworkPreviewImpl({
     const t = transformRef.current;
     const nx = node.x ?? 0;
     const ny = node.y ?? 0;
-    const offset = node.radius * t.k + 12;
-    const vx = rect.left + t.x + nx * t.k + offset;
-    const vy = rect.top + t.y + ny * t.k;
-    card.style.left = `${Math.max(8, Math.min(vx, rect.right - 200))}px`;
-    card.style.top = `${vy}px`;
+    const anchorX = rect.left + t.x + nx * t.k;
+    const anchorY = rect.top + t.y + ny * t.k;
+    const gap = Math.max(14, node.radius * t.k + 10);
+    const margin = 12;
+    const cardWidth = card.offsetWidth || 224;
+    const cardHeight = card.offsetHeight || 112;
+    const viewportRight = window.innerWidth - margin;
+    const viewportBottom = window.innerHeight - margin;
+    const hasRoomRight = anchorX + gap + cardWidth <= viewportRight;
+    const side = hasRoomRight ? "right" : "left";
+    const rawLeft =
+      side === "right" ? anchorX + gap : anchorX - gap - cardWidth;
+    const left = Math.max(margin, Math.min(rawLeft, viewportRight - cardWidth));
+    const centerY = Math.max(
+      margin + cardHeight / 2,
+      Math.min(anchorY, viewportBottom - cardHeight / 2),
+    );
+    card.dataset.side = side;
+    card.style.left = `${left}px`;
+    card.style.top = `${centerY}px`;
   };
   const parsed = previewGraph;
   const [hover, setHover] = useState<HoverState>(null);
@@ -923,6 +938,8 @@ function NetworkPreviewImpl({
         previousHover?.node === node &&
         equalModuleIds(previousHover.moduleIds, moduleIds)
       ) {
+        previousHover.x = clientX;
+        previousHover.y = clientY;
         return;
       }
       const nextHover = { node, moduleIds, x: clientX, y: clientY };
@@ -937,6 +954,26 @@ function NetworkPreviewImpl({
     hoverRef.current = null;
     setHover(null);
     requestDraw();
+  };
+
+  const syncHoverAfterTransform = (sourceEvent?: Event) => {
+    let clientX: number | undefined;
+    let clientY: number | undefined;
+
+    if (sourceEvent instanceof MouseEvent) {
+      clientX = sourceEvent.clientX;
+      clientY = sourceEvent.clientY;
+    } else if (sourceEvent instanceof TouchEvent && sourceEvent.touches[0]) {
+      clientX = sourceEvent.touches[0].clientX;
+      clientY = sourceEvent.touches[0].clientY;
+    } else if (hoverRef.current) {
+      clientX = hoverRef.current.x;
+      clientY = hoverRef.current.y;
+    }
+
+    if (clientX === undefined || clientY === undefined) return;
+    updateHoverAt(clientX, clientY);
+    if (hoverRef.current) positionHoverCard();
   };
 
   const scheduleHoverUpdate = (clientX: number, clientY: number) => {
@@ -1228,7 +1265,7 @@ function NetworkPreviewImpl({
       .on("zoom", (event) => {
         transformRef.current = event.transform;
         if (event.sourceEvent) autoFitActiveRef.current = false;
-        positionHoverCard();
+        syncHoverAfterTransform(event.sourceEvent);
         requestDraw();
       });
 
@@ -1240,7 +1277,7 @@ function NetworkPreviewImpl({
       transformRef.current = next;
       select(canvas).call(zoom<HTMLCanvasElement, unknown>().transform, next);
       autoFitActiveRef.current = false;
-      positionHoverCard();
+      syncHoverAfterTransform(event);
       requestDraw();
     };
 
@@ -1885,31 +1922,112 @@ function NetworkPreviewImpl({
           bg="gray.900"
           borderRadius="sm"
           color="white"
-          maxW="12rem"
+          maxW="18rem"
+          minW="7.5rem"
           pointerEvents="none"
           position="fixed"
           px={2.5}
           py={2}
           transform="translateY(-50%)"
           zIndex={10}
+          css={{
+            "&::before": {
+              background: "var(--chakra-colors-gray-900)",
+              content: '""',
+              height: "0.5rem",
+              position: "absolute",
+              top: "calc(50% - 0.25rem)",
+              transform: "rotate(45deg)",
+              width: "0.5rem",
+            },
+            '&[data-side="right"]::before': {
+              left: "-0.25rem",
+            },
+            '&[data-side="left"]::before': {
+              right: "-0.25rem",
+            },
+          }}
         >
-          <Text fontSize="xs" fontWeight={700} mb={1}>
-            {hover.node.label}
-          </Text>
-          {hover.node.label !== hover.node.id && (
-            <Text color="whiteAlpha.700" fontSize="xs" mb={0}>
-              id {hover.node.id}
+          <Box alignItems="baseline" display="flex" gap={3} mb={1} minW={0}>
+            <Text
+              as="span"
+              fontSize="xs"
+              fontWeight={700}
+              mb={0}
+              minW={0}
+              overflowWrap="anywhere"
+            >
+              {hover.node.label}
             </Text>
-          )}
-          <Text color="whiteAlpha.800" fontSize="xs" mb={0}>
-            Flow {hover.node.flow.toFixed(4)}
-            {hover.node.degree > 0 ? ` · Degree ${hover.node.degree}` : ""}
-            {hoverSlices.length === 1 && !hoverPath
-              ? ` · Module ${hoverSlices[0].moduleId}`
-              : moduleId !== undefined && hoverSlices.length === 0 && !hoverPath
-                ? ` · Module ${moduleId}`
-                : ""}
-          </Text>
+            {hover.node.label !== hover.node.id && (
+              <Text
+                as="span"
+                color="whiteAlpha.700"
+                flexShrink={0}
+                fontSize="2xs"
+                mb={0}
+              >
+                {hover.node.id}
+              </Text>
+            )}
+          </Box>
+          <Box
+            color="whiteAlpha.900"
+            columnGap={2.5}
+            display="grid"
+            fontSize="xs"
+            rowGap={0.5}
+            gridTemplateColumns="max-content 1fr"
+            mt={1.5}
+          >
+            <Text as="span" color="whiteAlpha.700" mb={0}>
+              Flow
+            </Text>
+            <Text as="span" mb={0}>
+              {(hover.node.flow * 100).toFixed(2)}%
+            </Text>
+            {hover.node.degree > 0 && (
+              <>
+                <Text as="span" color="whiteAlpha.700" mb={0}>
+                  Degree
+                </Text>
+                <Text as="span" mb={0}>
+                  {hover.node.degree}
+                </Text>
+              </>
+            )}
+            {hoverSlices.length === 1 && !hoverPath ? (
+              <>
+                <Text as="span" color="whiteAlpha.700" mb={0}>
+                  Module
+                </Text>
+                <Text as="span" mb={0}>
+                  {hoverSlices[0].moduleId}
+                </Text>
+              </>
+            ) : moduleId !== undefined &&
+              hoverSlices.length === 0 &&
+              !hoverPath ? (
+              <>
+                <Text as="span" color="whiteAlpha.700" mb={0}>
+                  Module
+                </Text>
+                <Text as="span" mb={0}>
+                  {moduleId}
+                </Text>
+              </>
+            ) : null}
+            {hoverPath && (
+              <>
+                <Text as="span" color="whiteAlpha.700" mb={0}>
+                  Path
+                </Text>
+                <Text as="span" mb={0} overflowWrap="anywhere">
+                  {hoverPath}
+                </Text>
+              </>
+            )}
+          </Box>
           {hoverSlices.length > 1 && (
             <Box mt={1}>
               {visibleHoverSlices.map((slice) => {
@@ -1923,8 +2041,8 @@ function NetworkPreviewImpl({
                     color={
                       activeTooltipModuleId === undefined ||
                       activeTooltipModuleId === slice.moduleId
-                        ? "whiteAlpha.800"
-                        : "whiteAlpha.500"
+                        ? "whiteAlpha.900"
+                        : "whiteAlpha.600"
                     }
                     fontSize="xs"
                     mb={0}
@@ -1949,11 +2067,6 @@ function NetworkPreviewImpl({
                 </Text>
               )}
             </Box>
-          )}
-          {hoverPath && (
-            <Text color="whiteAlpha.800" fontSize="xs" mb={0}>
-              Path {hoverPath}
-            </Text>
           )}
         </Box>
       )}
