@@ -3,9 +3,12 @@ import {
   Box,
   Container,
   chakra,
+  Dialog,
   Flex,
   Heading,
   HStack,
+  IconButton,
+  Portal,
   SimpleGrid,
   Stack,
   Text,
@@ -14,6 +17,7 @@ import type { GetStaticProps, NextPage } from "next";
 import type { FC, PropsWithChildren } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { FaRegFilePdf } from "react-icons/fa6";
+import { LuX } from "react-icons/lu";
 import { SiGooglescholar } from "react-icons/si";
 import { Tag } from "../shared/components/Tag";
 import HowToCite from "../shared/compounds/HowToCite";
@@ -34,6 +38,27 @@ const AccTrigger = Accordion.ItemTrigger as FC<
 const AccContent = Accordion.ItemContent as FC<PropsWithChildren>;
 const AccBody = Accordion.ItemBody as FC<
   PropsWithChildren<Record<string, unknown>>
+>;
+const DialogContent = Dialog.Content as FC<
+  PropsWithChildren<Record<string, unknown>>
+>;
+const DialogBackdrop = Dialog.Backdrop as FC<
+  PropsWithChildren<Record<string, unknown>>
+>;
+const DialogPositioner = Dialog.Positioner as FC<
+  PropsWithChildren<Record<string, unknown>>
+>;
+const DialogBody = Dialog.Body as FC<
+  PropsWithChildren<Record<string, unknown>>
+>;
+const DialogTitle = Dialog.Title as FC<
+  PropsWithChildren<Record<string, unknown>>
+>;
+const DialogDescription = Dialog.Description as FC<
+  PropsWithChildren<Record<string, unknown>>
+>;
+const DialogCloseTrigger = Dialog.CloseTrigger as FC<
+  PropsWithChildren<{ asChild?: boolean }>
 >;
 
 const MONTHS = [
@@ -79,14 +104,102 @@ const ActionLink = ({
   </chakra.a>
 );
 
+const PublicationFigureModal = ({
+  publication,
+  onClose,
+}: {
+  publication?: Publication;
+  onClose: () => void;
+}) => (
+  <Dialog.Root
+    open={Boolean(publication)}
+    onOpenChange={(details) => {
+      if (!details.open) onClose();
+    }}
+    placement="center"
+  >
+    <Portal>
+      <DialogBackdrop bg="blackAlpha.700" />
+      <DialogPositioner p={{ base: 3, md: 6 }}>
+        <DialogContent
+          bg="white"
+          borderRadius="md"
+          boxShadow="2xl"
+          color="gray.900"
+          w="fit-content"
+          maxW="calc(100vw - 2rem)"
+          maxH="calc(100dvh - 2rem)"
+          p={{ base: 3, md: 4 }}
+          position="relative"
+        >
+          <DialogTitle srOnly>{publication?.title}</DialogTitle>
+          <DialogCloseTrigger asChild>
+            <IconButton
+              aria-label="Close figure"
+              position="absolute"
+              top={2}
+              right={2}
+              size="sm"
+              variant="ghost"
+              color="gray.700"
+              zIndex={1}
+            >
+              <LuX />
+            </IconButton>
+          </DialogCloseTrigger>
+          <DialogBody
+            p={0}
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            gap={3}
+          >
+            {publication?.figureSrc && (
+              <chakra.img
+                src={publication.figureSrc}
+                alt={publication.figure?.caption ?? publication.title}
+                width={publication.figureWidth}
+                height={publication.figureHeight}
+                display="block"
+                style={{
+                  maxWidth: "min(72rem, calc(100vw - 4rem))",
+                  maxHeight: publication.figure?.caption
+                    ? "calc(100dvh - 11rem)"
+                    : "calc(100dvh - 6rem)",
+                  width: "auto",
+                  height: "auto",
+                  objectFit: "contain",
+                }}
+              />
+            )}
+            {publication?.figure?.caption && (
+              <DialogDescription
+                color="gray.600"
+                fontSize="sm"
+                lineHeight={1.5}
+                mb={0}
+                maxW="min(72ch, calc(100vw - 4rem))"
+              >
+                {publication.figure.caption}
+              </DialogDescription>
+            )}
+          </DialogBody>
+        </DialogContent>
+      </DialogPositioner>
+    </Portal>
+  </Dialog.Root>
+);
+
 const PublicationsAccordion = ({
   publications,
   value,
   onValueChange,
+  onFigureOpen,
 }: {
   publications: Publication[];
   value: string[];
   onValueChange: (next: string[]) => void;
+  onFigureOpen: (publication: Publication) => void;
 }) => (
   <Accordion.Root
     collapsible
@@ -213,23 +326,44 @@ const PublicationsAccordion = ({
                     alignSelf="flex-start"
                     order={{ base: 0, md: 1 }}
                   >
-                    <chakra.img
-                      src={p.figureSrc}
-                      alt={p.figure?.caption ?? p.title}
-                      width={p.figureWidth}
-                      height={p.figureHeight}
-                      loading="lazy"
+                    <chakra.button
+                      type="button"
+                      aria-label={`Open figure for ${p.title}`}
+                      onClick={() => onFigureOpen(p)}
                       display="block"
-                      style={{
-                        maxWidth: "100%",
-                        maxHeight: "20rem",
-                        width: "auto",
-                        height: "auto",
-                        objectFit: "contain",
-                        marginLeft: "auto",
-                        marginRight: "auto",
+                      mx="auto"
+                      p={0}
+                      bg="transparent"
+                      borderWidth="1px"
+                      borderColor="transparent"
+                      borderRadius="sm"
+                      cursor="zoom-in"
+                      transition="border-color 150ms, opacity 150ms"
+                      _hover={{ borderColor: "gray.300", opacity: 0.9 }}
+                      _focusVisible={{
+                        outline: "2px solid",
+                        outlineColor: "#128bc2",
+                        outlineOffset: "3px",
                       }}
-                    />
+                    >
+                      <chakra.img
+                        src={p.figureSrc}
+                        alt={p.figure?.caption ?? p.title}
+                        width={p.figureWidth}
+                        height={p.figureHeight}
+                        loading="lazy"
+                        display="block"
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: "20rem",
+                          width: "auto",
+                          height: "auto",
+                          objectFit: "contain",
+                          marginLeft: "auto",
+                          marginRight: "auto",
+                        }}
+                      />
+                    </chakra.button>
                     {p.figure?.caption && (
                       <Text
                         color="gray.500"
@@ -254,6 +388,7 @@ const PublicationsAccordion = ({
 
 const PublicationsPage: NextPage<Props> = ({ publications }) => {
   const [openItems, setOpenItems] = useState<string[]>([]);
+  const [figurePublication, setFigurePublication] = useState<Publication>();
 
   const featured = useMemo(
     () => publications.filter((p) => p.featured).slice(0, 6),
@@ -373,9 +508,14 @@ const PublicationsPage: NextPage<Props> = ({ publications }) => {
             publications={publications}
             value={openItems}
             onValueChange={setOpenItems}
+            onFigureOpen={setFigurePublication}
           />
         </Box>
       </PortalSection>
+      <PublicationFigureModal
+        publication={figurePublication}
+        onClose={() => setFigurePublication(undefined)}
+      />
     </Container>
   );
 };
