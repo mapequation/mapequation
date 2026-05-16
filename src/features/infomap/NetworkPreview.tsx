@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  ButtonGroup,
   HStack,
   Menu,
   Portal,
@@ -37,7 +38,7 @@ import {
 } from "./hierarchicalLayout";
 import {
   buildHierarchicalModuleColors,
-  fallbackModuleColor,
+  moduleColorFromModel,
   type ModuleColorModel,
   type ModuleId,
   type ModuleMap,
@@ -430,11 +431,6 @@ function createGraph(parsed: Extract<PreviewGraph, { status: "ok" }>): Graph {
   return { nodes, links };
 }
 
-function formatCodeLength(codeLength: number | null | undefined) {
-  if (codeLength === null || codeLength === undefined) return null;
-  return `L = ${codeLength.toFixed(3)} bits`;
-}
-
 function previewGraphSignature(graph: PreviewGraph) {
   if (graph.status !== "ok") {
     return `${graph.status}:${graph.message}`;
@@ -487,12 +483,10 @@ function textSignature(value: string | undefined) {
 }
 
 function NetworkPreviewImpl({
-  codeLength,
   directed = false,
   ftree,
   levelModules,
   loadingState = null,
-  moduleSource = "latest Infomap result",
   networkName,
   modules,
   moduleFlows,
@@ -501,12 +495,10 @@ function NetworkPreviewImpl({
   previewGraph,
   selectedLevel,
 }: {
-  codeLength?: number | null;
   directed?: boolean;
   ftree?: string;
   levelModules?: Map<number, ModuleMap>;
   loadingState?: "loading" | "running" | null;
-  moduleSource?: string;
   networkName?: string;
   modules: ModuleMap;
   moduleFlows?: Map<number, ModuleFlow[]>;
@@ -568,9 +560,10 @@ function NetworkPreviewImpl({
   const moduleColorFor: ModuleColorResolver = (moduleId) => {
     const cached = moduleColorCacheRef.current.get(moduleId);
     if (cached) return cached;
-    const color =
-      moduleColorModelRef.current.colorByModule.get(moduleId) ??
-      fallbackModuleColor(moduleId);
+    const color = moduleColorFromModel(
+      moduleColorModelRef.current.colorByModule,
+      moduleId,
+    );
     moduleColorCacheRef.current.set(moduleId, color);
     return color;
   };
@@ -762,7 +755,6 @@ function NetworkPreviewImpl({
   };
   const parsed = previewGraph;
   const [hover, setHover] = useState<HoverState>(null);
-  const [isSummaryCardActive, setIsSummaryCardActive] = useState(false);
   const [level, setLevel] = useState(1);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -796,7 +788,6 @@ function NetworkPreviewImpl({
 
   const levelLocked = selectedLevel !== null && selectedLevel !== undefined;
   const moduleLevelCount = Math.max(1, (numLevels ?? 1) - 1);
-  const codeLengthText = formatCodeLength(codeLength);
   const activeLevel =
     levelLocked && selectedLevel === -1
       ? moduleLevelCount
@@ -852,16 +843,6 @@ function NetworkPreviewImpl({
   modulesRef.current = activeModules;
   coloredByModulesRef.current = coloredByModules;
   moduleFlowsRef.current = usePieFlows ? moduleFlows : undefined;
-
-  const moduleLabel = useMemo(() => {
-    if (parsed.status !== "ok" || !coloredByModules) return "";
-    const uniqueModules = new Set<ModuleId>();
-    for (const node of parsed.nodes) {
-      const moduleId = activeModules.get(Number(node.id));
-      if (moduleId !== undefined) uniqueModules.add(moduleId);
-    }
-    return `${uniqueModules.size} modules`;
-  }, [activeModules, coloredByModules, parsed]);
 
   useEffect(() => {
     if (level <= moduleLevelCount) return;
@@ -1707,15 +1688,6 @@ function NetworkPreviewImpl({
     requestDraw();
   };
 
-  const statusText =
-    parsed.status === "ok"
-      ? coloredByModules
-        ? `Colored by ${moduleSource} · ${moduleLabel}`
-        : "Previewing network structure"
-      : parsed.message;
-
-  const nodeCount = parsed.nodes.length;
-  const linkCount = parsed.links.length;
   const moduleId =
     hover && coloredByModules
       ? activeModules.get(Number(hover.node.id))
@@ -1789,69 +1761,6 @@ function NetworkPreviewImpl({
         }}
       />
 
-      <HStack
-        align="center"
-        bg={isSummaryCardActive ? "white" : "whiteAlpha.900"}
-        borderWidth="1px"
-        borderColor="gray.200"
-        borderRadius="md"
-        boxShadow={isSummaryCardActive ? "sm" : "xs"}
-        cursor="default"
-        gap={2}
-        left={3}
-        maxW="calc(100% - 6rem)"
-        onBlur={() => setIsSummaryCardActive(false)}
-        onFocus={() => setIsSummaryCardActive(true)}
-        onPointerEnter={() => setIsSummaryCardActive(true)}
-        onPointerLeave={() => setIsSummaryCardActive(false)}
-        opacity={{ base: 1, md: isSummaryCardActive ? 1 : 0.7 }}
-        px={3}
-        py={2}
-        position="absolute"
-        top={3}
-        transition="opacity 160ms ease, background-color 160ms ease, box-shadow 160ms ease"
-      >
-        <Box minW={0}>
-          {networkName && (
-            <Text
-              color="gray.700"
-              fontSize="xs"
-              fontWeight={700}
-              mb={0.5}
-              truncate
-            >
-              {networkName}
-            </Text>
-          )}
-          <Text color="gray.600" fontSize="xs" mb={0}>
-            {nodeCount.toLocaleString()} nodes · {linkCount.toLocaleString()}{" "}
-            links
-          </Text>
-          {coloredByModules && (
-            <Text
-              color="gray.600"
-              display={{ base: "none", md: "block" }}
-              fontSize="xs"
-              mb={0}
-            >
-              {moduleLabel}
-              {numLevels ? ` · ${numLevels} levels` : ""}
-              {codeLengthText ? ` · ${codeLengthText}` : ""}
-            </Text>
-          )}
-          {!coloredByModules && (
-            <Text
-              color="gray.500"
-              display={{ base: "none", md: "block" }}
-              fontSize="xs"
-              mb={0}
-            >
-              {statusText}
-            </Text>
-          )}
-        </Box>
-      </HStack>
-
       {hasLevelControl && (
         <Box
           bg="gray.subtle"
@@ -1898,23 +1807,18 @@ function NetworkPreviewImpl({
         </Box>
       )}
 
-      <HStack
-        align={{ base: "stretch", sm: "center" }}
-        flexDirection={{ base: "column", sm: "row" }}
-        gap={2}
+      <ButtonGroup
+        attached
+        aria-label="Network preview controls"
+        size="xs"
         position="absolute"
         right={3}
         top={3}
-        w={{ base: "4.5rem", sm: "max-content" }}
+        variant="surface"
       >
         <Menu.Root>
           <MenuTrigger asChild>
-            <Button
-              aria-label="Download network"
-              size="xs"
-              variant="surface"
-              loading={isDownloading}
-            >
+            <Button aria-label="Download network" loading={isDownloading}>
               <LuDownload />
             </Button>
           </MenuTrigger>
@@ -1929,12 +1833,7 @@ function NetworkPreviewImpl({
             </MenuPositioner>
           </Portal>
         </Menu.Root>
-        <Button
-          aria-label="Fit network preview"
-          onClick={() => fitToGraph()}
-          size="xs"
-          variant="surface"
-        >
+        <Button aria-label="Fit network preview" onClick={() => fitToGraph()}>
           <LuMaximize />
           Fit
         </Button>
@@ -1945,17 +1844,15 @@ function NetworkPreviewImpl({
               : "Fullscreen network preview"
           }
           onClick={toggleFullscreen}
-          size="xs"
           title={
             isFullscreen
               ? "Exit fullscreen network preview"
               : "Fullscreen network preview"
           }
-          variant="surface"
         >
           {isFullscreen ? <LuMinimize2 /> : <LuExpand />}
         </Button>
-      </HStack>
+      </ButtonGroup>
 
       {(loadingState || layoutOverlayPending) && (
         <HStack

@@ -10,10 +10,11 @@ import {
 } from "@chakra-ui/react";
 import { Select } from "chakra-react-select";
 import type { Ref } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { LuMinus, LuPlus, LuSearch, LuX } from "react-icons/lu";
 import useStore from "../../state";
+import { applyArgsToParams, createParams } from "../../state/parameters";
 import type { InfomapParameter } from "../../state/types";
 
 const parameterGroups = ["Input", "Output", "Algorithm", "Accuracy", "About"];
@@ -344,6 +345,27 @@ const ParameterControl = ({ param }: { param: InfomapParameter }) => {
 const isToggleOnlyParameter = (param: InfomapParameter) =>
   !param.dropdown && !param.input && !param.incremental && !param.file;
 
+type ParameterBaseline = Map<string, InfomapParameter>;
+
+const parameterValueSignature = (param: InfomapParameter) =>
+  Array.isArray(param.value)
+    ? param.value.join(",")
+    : String(param.value ?? "");
+
+const parameterIsChanged = (
+  param: InfomapParameter,
+  baseline: ParameterBaseline | null,
+) => {
+  if (!baseline) return false;
+  const lastRunParam = baseline.get(param.long);
+  if (!lastRunParam) return false;
+
+  return (
+    param.active !== lastRunParam.active ||
+    parameterValueSignature(param) !== parameterValueSignature(lastRunParam)
+  );
+};
+
 function ParamName({
   param,
   short = false,
@@ -355,6 +377,7 @@ function ParamName({
     short && param.shortString
       ? stripFlagPrefix(param.shortString)
       : parameterLabel(param);
+  const parts = name.split(/(<[^>]+>)/g);
 
   return (
     <code
@@ -370,7 +393,9 @@ function ParamName({
       }}
       title={param.longString}
     >
-      {name}
+      {parts.map((part) =>
+        part.startsWith("<") && part.endsWith(">") ? null : part,
+      )}
     </code>
   );
 }
@@ -378,10 +403,12 @@ function ParamName({
 const ParameterGroup = ({
   group,
   advanced,
+  baseline,
   query,
 }: {
   group: string;
   advanced: boolean;
+  baseline: ParameterBaseline | null;
   query: string;
 }) => {
   const store = useStore();
@@ -404,24 +431,34 @@ const ParameterGroup = ({
 
   if (params.length === 0) return null;
 
+  const activeCount = params.filter(({ param }) => param.active).length;
+
   return (
-    <>
-      <Text
-        id={id}
-        color="gray.500"
-        fontFamily="monospace"
-        fontSize="0.68rem"
-        fontWeight={700}
-        letterSpacing="0.12em"
-        textTransform="uppercase"
-        mt={4}
-        mb={1.5}
-      >
-        {group}
-      </Text>
+    <Box as="section" mt={4} mb={5}>
+      <HStack align="center" justify="space-between" mb={1.5} gap={3}>
+        <Text
+          id={id}
+          color="gray.500"
+          fontFamily="monospace"
+          fontSize="0.68rem"
+          fontWeight={700}
+          letterSpacing="0.12em"
+          textTransform="uppercase"
+          mb={0}
+        >
+          {group}
+        </Text>
+        <Text color="gray.500" fontSize="0.68rem" mb={0}>
+          <Box as="span" color="blue.600" fontWeight="600">
+            {activeCount}
+          </Box>
+          /{params.length} active
+        </Text>
+      </HStack>
       <Box borderTopWidth="1px" borderTopColor="gray.200">
         {params.map(({ param }, key) => {
           const textToggles = isToggleOnlyParameter(param);
+          const changed = parameterIsChanged(param, baseline);
 
           return (
             <HStack
@@ -430,12 +467,23 @@ const ParameterGroup = ({
               justifyContent="space-between"
               flexWrap="wrap"
               gap={2}
+              bg={
+                param.active
+                  ? "linear-gradient(180deg, rgba(49, 130, 206, 0.05), rgba(49, 130, 206, 0))"
+                  : undefined
+              }
               px={2}
               py={2}
+              borderLeftWidth={changed ? "2px" : 0}
+              borderLeftColor={changed ? "blue.500" : undefined}
               borderBottomWidth="1px"
               borderBottomColor="gray.200"
               _last={{ borderBottomWidth: 0 }}
-              _hover={textToggles ? { bg: "gray.50" } : undefined}
+              _hover={{
+                bg: param.active
+                  ? "linear-gradient(180deg, rgba(49, 130, 206, 0.07), rgba(49, 130, 206, 0.02))"
+                  : "gray.50",
+              }}
             >
               <Box flex="1 1 13rem" minW={0}>
                 <Box
@@ -470,7 +518,7 @@ const ParameterGroup = ({
                     )}
                     {param.active && (
                       <Box
-                        aria-label="Active"
+                        aria-hidden="true"
                         bg="blue.500"
                         borderRadius="full"
                         boxShadow="0 0 0 2px rgba(49, 130, 206, 0.14)"
@@ -490,6 +538,17 @@ const ParameterGroup = ({
                       <HighlightedText text={param.description} query={query} />
                     ) : null}
                   </Box>
+                  {changed && (
+                    <Text
+                      color="gray.500"
+                      fontFamily="monospace"
+                      fontSize="0.68rem"
+                      mb={0}
+                      mt={0.5}
+                    >
+                      changed since last run
+                    </Text>
+                  )}
                 </Box>
               </Box>
               <Box
@@ -506,15 +565,27 @@ const ParameterGroup = ({
           );
         })}
       </Box>
-    </>
+    </Box>
   );
 };
 
-export default function Parameters() {
+export default function Parameters({
+  changedFromArgs,
+}: {
+  changedFromArgs?: string;
+}) {
   const store = useStore();
   const [advanced, setAdvanced] = useState(false);
   const [search, setSearch] = useState("");
   const query = normalizeSearch(search);
+  const baseline = useMemo<ParameterBaseline | null>(() => {
+    if (!changedFromArgs) return null;
+    return new Map(
+      applyArgsToParams(createParams(), changedFromArgs.split(/\s+/)).map(
+        (param) => [param.long, param],
+      ),
+    );
+  }, [changedFromArgs]);
 
   useEffect(() => {
     if (!window.location.hash) return;
@@ -575,76 +646,71 @@ export default function Parameters() {
 
   return (
     <>
-      <Box position="relative" mb={2}>
-        <Box
-          position="absolute"
-          left={3}
-          top="50%"
-          transform="translateY(-50%)"
-          color="gray.500"
-          pointerEvents="none"
-          zIndex={1}
-        >
-          <LuSearch size={16} />
-        </Box>
-        <Input
-          aria-label="Search parameters"
-          id="parameters-search"
-          name="parameters-search"
-          placeholder="Search parameters…"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key !== "Escape") return;
-            event.preventDefault();
-            event.stopPropagation();
-            setSearch("");
-            event.currentTarget.blur();
-          }}
-          pl={9}
-          pr={search ? 9 : 3}
-          size="sm"
-          bg="white"
-        />
-        {search && (
+      <HStack align="center" gap={3} mb={2}>
+        <Box flex="1" minW={0} position="relative">
           <Box
-            as="button"
-            aria-label="Clear search"
             position="absolute"
-            right={2}
+            left={3}
             top="50%"
             transform="translateY(-50%)"
-            bg="transparent"
-            border={0}
-            p={1}
             color="gray.500"
-            cursor="pointer"
-            borderRadius="sm"
-            _hover={{ color: "gray.900", bg: "gray.100" }}
+            pointerEvents="none"
             zIndex={1}
-            onClick={() => setSearch("")}
           >
-            <LuX size={14} />
+            <LuSearch size={16} />
           </Box>
-        )}
-      </Box>
-
-      <HStack
-        alignItems="center"
-        justifyContent="space-between"
-        gap={3}
-        py={2}
-        mb={1}
-      >
-        <Text color="gray.700" fontSize="xs" fontWeight={700} mb={0}>
-          Advanced
-        </Text>
-        <ToggleSwitch
-          id="show-advanced"
-          checked={advanced}
-          ariaLabel="Show advanced parameters"
-          onChange={() => setAdvanced(!advanced)}
-        />
+          <Input
+            aria-label="Search parameters"
+            id="parameters-search"
+            name="parameters-search"
+            placeholder="Search parameters…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              event.stopPropagation();
+              setSearch("");
+              event.currentTarget.blur();
+            }}
+            pl={9}
+            pr={search ? 9 : 3}
+            size="sm"
+            bg="white"
+          />
+          {search && (
+            <Box
+              as="button"
+              aria-label="Clear search"
+              position="absolute"
+              right={2}
+              top="50%"
+              transform="translateY(-50%)"
+              bg="transparent"
+              border={0}
+              p={1}
+              color="gray.500"
+              cursor="pointer"
+              borderRadius="sm"
+              _hover={{ color: "gray.900", bg: "gray.100" }}
+              zIndex={1}
+              onClick={() => setSearch("")}
+            >
+              <LuX size={14} />
+            </Box>
+          )}
+        </Box>
+        <HStack as="label" color="gray.700" flexShrink={0} gap={2}>
+          <ToggleSwitch
+            id="show-advanced"
+            checked={advanced}
+            ariaLabel="Show advanced parameters"
+            onChange={() => setAdvanced(!advanced)}
+          />
+          <Text fontSize="xs" fontWeight={700} mb={0}>
+            Advanced
+          </Text>
+        </HStack>
       </HStack>
 
       {hasResults ? (
@@ -653,6 +719,7 @@ export default function Parameters() {
             key={group}
             group={group}
             advanced={advanced}
+            baseline={baseline}
             query={query}
           />
         ))

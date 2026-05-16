@@ -176,7 +176,7 @@ export function sharedModuleFor(
   const srcFlows = moduleFlows?.get(sId);
   const tgtFlows = moduleFlows?.get(tId);
   if (srcFlows && tgtFlows) {
-    let bestModule: number | undefined;
+    let bestModule: ModuleId | undefined;
     let bestScore = 0;
     for (const a of srcFlows) {
       for (const b of tgtFlows) {
@@ -206,7 +206,7 @@ export function nodeModuleSlices(
   const flows = moduleFlows?.get(physicalId);
   if (flows && flows.length > 0) {
     return flows
-      .map(({ module, flow }) => ({ moduleId: module as ModuleId, flow }))
+      .map(({ module, flow }) => ({ moduleId: module, flow }))
       .sort((a, b) => b.flow - a.flow);
   }
   const moduleId = modules.get(physicalId);

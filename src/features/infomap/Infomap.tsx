@@ -8,6 +8,7 @@ import {
   GridItem,
   Heading,
   HStack,
+  IconButton,
   Kbd,
   Menu,
   Portal,
@@ -20,6 +21,7 @@ import {
   type FC,
   type PropsWithChildren,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -35,9 +37,10 @@ import {
   LuX,
 } from "react-icons/lu";
 import useStore from "../../state";
-import { parseCluModules } from "../../state/output";
+import { type ModuleFlowMap, parseCluModules } from "../../state/output";
 import {
   argsRequestOutputFormat,
+  DEFAULT_INFOMAP_ARGS,
   ensurePreviewOutputs,
 } from "../../state/parameters";
 import type { InputFile, InputName, OutputKey } from "../../state/types";
@@ -45,8 +48,13 @@ import ExampleNetworksList from "./ExamplesMenu";
 import InputParameters from "./InputParameters";
 import InputTextarea from "./InputTextarea";
 import LoadButton from "./LoadButton";
+import {
+  buildHierarchicalModuleColors,
+  type ModuleId,
+  type ModuleMap,
+  moduleColorFromModel,
+} from "./moduleColors";
 import NetworkPreview from "./NetworkPreview";
-import type { ModuleMap } from "./moduleColors";
 import Parameters from "./Parameters";
 import {
   errorGraph,
@@ -66,6 +74,9 @@ const MenuItem = Menu.Item as FC<
   PropsWithChildren<{ onClick?: () => void; value: string }>
 >;
 
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 const inputTabs = [
   { key: "network", label: "Network" },
   { key: "cluster data", label: "Clusters" },
@@ -80,31 +91,50 @@ const inputPlaceholders = {
 
 type EvaluationMetadata = {
   codeLength: number | null;
+  codelengthSavings: number | null;
   numLevels: number | null;
+};
+
+type LastRunSummary = {
+  args: string;
+  completedAt: number;
+  elapsedMs: number;
+  networkSignature: string;
+  status: "complete" | "error";
 };
 
 function parseEvaluationMetadata(content: Record<string, unknown>) {
   const json = content.json ?? content.json_states;
-  if (!json) return { codeLength: null, numLevels: null };
+  if (!json) {
+    return { codeLength: null, codelengthSavings: null, numLevels: null };
+  }
 
   let parsed: unknown = json;
   if (typeof json === "string") {
     try {
       parsed = JSON.parse(json) as Record<string, unknown>;
     } catch {
-      return { codeLength: null, numLevels: null };
+      return { codeLength: null, codelengthSavings: null, numLevels: null };
     }
   }
   if (!parsed || typeof parsed !== "object") {
-    return { codeLength: null, numLevels: null };
+    return { codeLength: null, codelengthSavings: null, numLevels: null };
   }
 
-  const source = parsed as { codelength?: unknown; numLevels?: unknown };
+  const source = parsed as {
+    codelength?: unknown;
+    numLevels?: unknown;
+    relativeCodelengthSavings?: unknown;
+  };
   const codeLength = Number(source.codelength);
+  const codelengthSavings = Number(source.relativeCodelengthSavings);
   const numLevels = Number(source.numLevels);
 
   return {
     codeLength: Number.isFinite(codeLength) ? codeLength : null,
+    codelengthSavings: Number.isFinite(codelengthSavings)
+      ? codelengthSavings
+      : null,
     numLevels: Number.isFinite(numLevels) ? numLevels : null,
   };
 }
@@ -135,30 +165,47 @@ function textSignature(value: string) {
 
 function OutputViewer({
   ariaLabel = "Generated output",
+  autoScroll = false,
   content,
   fontSize = "xs",
-  highlightComments = true,
+  isActive = true,
   onCopy,
   placeholder = "",
+  variant = "default",
 }: {
   ariaLabel?: string;
+  autoScroll?: boolean;
   content: string;
   fontSize?: string;
-  highlightComments?: boolean;
+  isActive?: boolean;
   onCopy: () => void;
   placeholder?: string;
+  variant?: "default" | "terminal";
 }) {
-  const lines = content.split("\n");
+  const scrollContainerRef = useRef<HTMLPreElement | null>(null);
+  const isTerminal = variant === "terminal";
+  const selectionStyle = isTerminal
+    ? { background: "#374151", color: "#f9fafb" }
+    : { background: "#1d4ed8", color: "white" };
+
+  useIsomorphicLayoutEffect(() => {
+    if (!autoScroll || !isActive) return;
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  }, [autoScroll, content.length, isActive]);
 
   return (
     <Box
       aria-label={ariaLabel}
       as="pre"
-      bg="gray.50"
-      borderColor="gray.300"
+      bg={isTerminal ? "#0b1020" : "gray.50"}
+      borderColor={isTerminal ? "#1f2937" : "gray.300"}
       borderRadius="md"
       borderWidth="1px"
-      color="gray.900"
+      boxShadow={isTerminal ? "inset 0 1px 0 rgba(255,255,255,0.04)" : "none"}
+      color={isTerminal ? "#d1d5db" : "gray.900"}
       fontFamily="monospace"
       fontSize={fontSize}
       h="100%"
@@ -168,27 +215,17 @@ function OutputViewer({
       onCopy={onCopy}
       overflow="auto"
       p={3}
+      ref={scrollContainerRef}
       role="textbox"
       tabIndex={0}
       whiteSpace="pre"
       w="100%"
+      css={{
+        "& *::selection": selectionStyle,
+        "&::selection": selectionStyle,
+      }}
     >
-      {content
-        ? lines.map((line, index) => (
-            <Box
-              as="span"
-              color={
-                highlightComments && line.startsWith("#")
-                  ? "#6a737d"
-                  : undefined
-              }
-              display="block"
-              key={`${index}:${line}`}
-            >
-              {line || " "}
-            </Box>
-          ))
-        : placeholder}
+      {content || placeholder}
     </Box>
   );
 }
@@ -219,13 +256,407 @@ function PanelHeader({
   );
 }
 
+function formatDuration(ms: number) {
+  if (ms < 1000) return `${Math.max(1, Math.round(ms))} ms`;
+  return `${(ms / 1000).toFixed(ms < 10_000 ? 2 : 1)} s`;
+}
+
+function formatRunTime(timestamp: number) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(timestamp);
+}
+
+function formatCodeLengthValue(value: number | null) {
+  return value === null ? "—" : value.toFixed(3);
+}
+
+function parseTrialCount(consoleContent: string) {
+  const match = consoleContent.match(/Summary after\s+(\d+)\s+trials/i);
+  if (!match?.[1]) return null;
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function moduleSegments(modules: ModuleMap, moduleFlows?: ModuleFlowMap) {
+  if (moduleFlows && moduleFlows.size > 0) {
+    const flows = new Map<ModuleId, number>();
+    for (const entries of moduleFlows.values()) {
+      for (const { flow, module } of entries) {
+        if (flow <= 0) continue;
+        flows.set(module, (flows.get(module) ?? 0) + flow);
+      }
+    }
+    if (flows.size > 0) {
+      return [...flows].map(([moduleId, flow]) => ({ moduleId, value: flow }));
+    }
+  }
+
+  const counts = new Map<ModuleId, number>();
+  for (const moduleId of modules.values()) {
+    counts.set(moduleId, (counts.get(moduleId) ?? 0) + 1);
+  }
+
+  return [...counts].map(([moduleId, count]) => ({ moduleId, value: count }));
+}
+
+type ModuleStripSegment = {
+  isRemainder?: boolean;
+  moduleId?: ModuleId;
+  value: number;
+};
+
+const minColoredModuleStripShare = 0.025;
+
+function moduleStripSegments(
+  segments: { moduleId: ModuleId; value: number }[],
+): ModuleStripSegment[] {
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+  if (total <= 0) return [];
+
+  const firstSmallIndex = segments.findIndex(
+    (segment) => segment.value / total < minColoredModuleStripShare,
+  );
+  const coloredCount =
+    firstSmallIndex === -1 ? segments.length : firstSmallIndex;
+  const coloredSegments = segments.slice(0, coloredCount);
+  const remainderValue = segments
+    .slice(coloredCount)
+    .reduce((sum, segment) => sum + segment.value, 0);
+
+  if (remainderValue <= 0) return coloredSegments;
+  return [...coloredSegments, { isRemainder: true, value: remainderValue }];
+}
+
+function InputFileInfoCard({
+  hasValue,
+  disabled,
+  name,
+  onClear,
+  stats,
+}: {
+  hasValue: boolean;
+  disabled?: boolean;
+  name: string;
+  onClear: () => void;
+  stats: string;
+}) {
+  return (
+    <Box
+      alignItems="flex-start"
+      bg="white"
+      borderColor="gray.200"
+      borderRadius="md"
+      borderWidth="1px"
+      display="flex"
+      flexShrink={0}
+      justifyContent={{ base: "center", md: "flex-start" }}
+      mb={3}
+      minH="5.875rem"
+      px={{ base: 2, md: 3 }}
+      py={{ base: 0, md: 3 }}
+    >
+      <Flex align="flex-start" justify="space-between" minW={0} w="100%">
+        <Box minW={0}>
+          <Text
+            color="gray.500"
+            fontSize="0.65rem"
+            fontWeight={700}
+            letterSpacing="0.08em"
+            lineHeight={1}
+            mb={1}
+            textTransform="uppercase"
+          >
+            Network
+          </Text>
+          <HStack align="baseline" gap={1.5} minW={0}>
+            <Text
+              color={hasValue ? "gray.900" : "gray.500"}
+              fontSize="lg"
+              fontWeight={700}
+              lineHeight={1.2}
+              mb={0}
+              truncate
+            >
+              {name}
+            </Text>
+          </HStack>
+          <Text color="gray.500" fontSize="xs" lineClamp={1} mb={0} mt={1}>
+            {stats}
+          </Text>
+          <Box aria-hidden="true" h="0.375rem" mt={1.5} />
+        </Box>
+        <IconButton
+          aria-label="Clear network"
+          disabled={disabled || !hasValue}
+          flexShrink={0}
+          onClick={onClear}
+          size="xs"
+          variant="ghost"
+        >
+          <LuX />
+        </IconButton>
+      </Flex>
+    </Box>
+  );
+}
+
+function InfomapStatsStrip({
+  codeLength,
+  codelengthSavings,
+  consoleContent,
+  moduleColors,
+  moduleFlows,
+  modules,
+  nodeCount,
+  numLevels,
+  trialSetting,
+}: {
+  codeLength: number | null;
+  codelengthSavings: number | null;
+  consoleContent: string;
+  moduleColors: Map<ModuleId, string>;
+  moduleFlows?: ModuleFlowMap;
+  modules: ModuleMap;
+  nodeCount: number;
+  numLevels: number | null;
+  trialSetting: string | null;
+}) {
+  const segments = moduleSegments(modules, moduleFlows).sort(
+    (a, b) => b.value - a.value,
+  );
+  const moduleCount = segments.length;
+  const visibleSegments = moduleStripSegments(segments);
+  const trialCount = parseTrialCount(consoleContent);
+
+  return (
+    <Grid
+      borderColor="gray.200"
+      borderRadius="md"
+      borderWidth="1px"
+      flexShrink={0}
+      gap={0}
+      mb={3}
+      minH={{ base: "3rem", lg: "5.875rem" }}
+      overflow="hidden"
+      templateColumns="repeat(4, minmax(0, 1fr))"
+    >
+      <ResultStat
+        label="Top Modules"
+        value={moduleCount > 0 ? String(moduleCount) : "—"}
+        unit="modules"
+        detail={
+          nodeCount > 0
+            ? `${nodeCount.toLocaleString()} nodes`
+            : "No modules yet"
+        }
+      >
+        <HStack
+          aria-hidden="true"
+          gap={0.5}
+          h="0.375rem"
+          mt={1.5}
+          visibility={visibleSegments.length > 0 ? "visible" : "hidden"}
+          w="100%"
+        >
+          {visibleSegments.map(({ isRemainder, moduleId, value }, index) => (
+            <Box
+              bg={
+                isRemainder || moduleId === undefined
+                  ? "gray.300"
+                  : moduleColorFromModel(moduleColors, moduleId)
+              }
+              borderRadius="full"
+              flex={`${value} 1 0`}
+              h="100%"
+              key={isRemainder ? "remaining-modules" : `${moduleId}-${index}`}
+              minW="0.375rem"
+            />
+          ))}
+        </HStack>
+      </ResultStat>
+      <ResultStat
+        label="Hierarchy"
+        value={numLevels === null ? "—" : String(numLevels)}
+        unit={numLevels === 1 ? "level" : "levels"}
+        detail={
+          numLevels === null
+            ? "Awaiting result"
+            : numLevels > 2
+              ? "Multi-level"
+              : "Two-level"
+        }
+      />
+      <ResultStat
+        label="Codelength"
+        value={formatCodeLengthValue(codeLength)}
+        unit={codeLength === null ? undefined : "bits"}
+        detail={
+          codelengthSavings === null
+            ? "Run Infomap for savings"
+            : `${new Intl.NumberFormat(undefined, {
+                maximumFractionDigits: 2,
+                style: "percent",
+              }).format(codelengthSavings)} savings`
+        }
+      />
+      <ResultStat
+        label="Trials"
+        value={trialCount === null ? (trialSetting ?? "—") : String(trialCount)}
+        unit="trials"
+        detail={trialCount === null ? "Current setting" : "Latest run"}
+      />
+    </Grid>
+  );
+}
+
+function ResultStat({
+  children,
+  detail,
+  label,
+  unit,
+  value,
+}: {
+  children?: React.ReactNode;
+  detail: string;
+  label: string;
+  unit?: string;
+  value: string;
+}) {
+  return (
+    <Box
+      bg="white"
+      borderRightWidth="1px"
+      borderBottomWidth={0}
+      borderColor="gray.200"
+      display="flex"
+      flexDirection="column"
+      h="100%"
+      justifyContent={{ base: "center", md: "flex-start" }}
+      minW={0}
+      px={{ base: 2, md: 3 }}
+      py={{ base: 0, md: 3 }}
+      _last={{ borderRightWidth: 0, borderBottomWidth: 0 }}
+    >
+      <HStack
+        align="center"
+        display={{ base: "flex", md: "none" }}
+        gap={1}
+        justify="center"
+        minH="100%"
+        minW={0}
+      >
+        <Text
+          color="gray.900"
+          fontSize="sm"
+          fontVariantNumeric="tabular-nums"
+          fontWeight={700}
+          mb={0}
+        >
+          {value}
+        </Text>
+        {unit && (
+          <Text color="gray.500" fontSize="sm" mb={0}>
+            {unit}
+          </Text>
+        )}
+      </HStack>
+      <Box display={{ base: "none", md: "block" }}>
+        <Text
+          color="gray.500"
+          fontSize="0.65rem"
+          fontWeight={700}
+          letterSpacing="0.08em"
+          lineHeight={1}
+          mb={1}
+          textTransform="uppercase"
+        >
+          {label}
+        </Text>
+        <HStack align="baseline" gap={1.5} minW={0}>
+          <Text
+            color="gray.900"
+            fontSize="lg"
+            fontVariantNumeric="tabular-nums"
+            fontWeight={700}
+            lineHeight={1.1}
+            mb={0}
+          >
+            {value}
+          </Text>
+          {unit && (
+            <Text color="gray.500" fontSize="xs" mb={0}>
+              {unit}
+            </Text>
+          )}
+        </HStack>
+        <Text color="gray.500" fontSize="xs" lineClamp={1} mb={0} mt={1}>
+          {detail}
+        </Text>
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
+function RunStatus({
+  changedSinceRun,
+  isRunning,
+  lastRun,
+}: {
+  changedSinceRun: boolean;
+  isRunning: boolean;
+  lastRun: LastRunSummary | null;
+}) {
+  const color = isRunning
+    ? "gray.500"
+    : lastRun?.status === "complete"
+      ? "green.700"
+      : lastRun?.status === "error"
+        ? "red.700"
+        : "gray.500";
+  const statusText = isRunning
+    ? "Running Infomap…"
+    : !lastRun
+      ? "Not run yet"
+      : lastRun.status === "complete"
+        ? `Run complete · ${formatDuration(lastRun.elapsedMs)}`
+        : `Run failed · ${formatDuration(lastRun.elapsedMs)}`;
+  const detailText =
+    !isRunning && lastRun
+      ? changedSinceRun
+        ? "Inputs changed since last run"
+        : `Updated ${formatRunTime(lastRun.completedAt)}`
+      : "\u00a0";
+
+  return (
+    <Stack align="flex-end" gap={0.5} minH="2.25rem" justify="center">
+      <Text
+        color={color}
+        fontSize="xs"
+        fontWeight={lastRun && !isRunning ? 600 : 400}
+        mb={0}
+      >
+        {statusText}
+      </Text>
+      <Text color="gray.500" fontSize="xs" mb={0}>
+        {detailText}
+      </Text>
+    </Stack>
+  );
+}
+
 export default function InfomapOnline() {
   const store = useStore();
   const [infomapOutput, setInfomapOutput] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [isInputLoading, setIsInputLoading] = useState(false);
+  const [lastRun, setLastRun] = useState<LastRunSummary | null>(null);
   const outputBufferRef = useRef<string[]>([]);
   const outputFrameRef = useRef<number | null>(null);
+  const runStartedAtRef = useRef(0);
 
   const { activeKey, setActiveKey, physicalFiles, stateFiles } = store.output;
   const { hasArgsError } = store.params;
@@ -281,6 +712,13 @@ export default function InfomapOnline() {
           `Error: ${infomapError}`,
         ]);
         setIsRunning(false);
+        setLastRun({
+          args: storeRef.current.params.args,
+          completedAt: Date.now(),
+          elapsedMs: performance.now() - runStartedAtRef.current,
+          networkSignature: pendingOutputNetworkSignatureRef.current,
+          status: "error",
+        });
         console.error(infomapError);
       })
       .on("finished", async (content) => {
@@ -298,6 +736,13 @@ export default function InfomapOnline() {
           ...content,
         });
         setIsRunning(false);
+        setLastRun({
+          args: storeRef.current.params.args,
+          completedAt: Date.now(),
+          elapsedMs: performance.now() - runStartedAtRef.current,
+          networkSignature: pendingOutputNetworkSignatureRef.current,
+          status: "complete",
+        });
       }),
   );
   const hiddenOutputKeysRef = useRef<Set<OutputKey>>(new Set());
@@ -309,7 +754,7 @@ export default function InfomapOnline() {
     if (args) {
       setArgs(args);
     } else {
-      setArgs("--clu --tree --num-trials 10");
+      setArgs(DEFAULT_INFOMAP_ARGS);
     }
   }, [store.params.setArgs]);
 
@@ -331,6 +776,8 @@ export default function InfomapOnline() {
       window.clearTimeout(previewTimeoutRef.current);
     }
     const runId = ++previewRunIdRef.current;
+    let previewInfomap: Infomap | null = null;
+    let previewWorkerId: number | null = null;
     const trimmed = networkValue?.trim() ?? "";
     if (!trimmed) {
       setPreviewGraph(errorGraph("Add a network to preview it here."));
@@ -338,7 +785,7 @@ export default function InfomapOnline() {
       return;
     }
     previewTimeoutRef.current = window.setTimeout(() => {
-      const previewInfomap = new Infomap();
+      previewInfomap = new Infomap();
       setIsPreviewParsing(true);
       const previewArgs = [
         "--no-infomap",
@@ -350,32 +797,34 @@ export default function InfomapOnline() {
         .filter(Boolean)
         .join(" ");
       previewInfomap
-        .runAsync({
-          network: networkValue,
-          filename: networkName || "network",
-          args: previewArgs,
-        })
-        .then((result) => {
-          if (runId !== previewRunIdRef.current) return;
-          setPreviewGraph(parseInfomapPreviewResult(result));
-        })
-        .catch((error: unknown) => {
-          if (runId !== previewRunIdRef.current) return;
-          const message =
-            error instanceof Error ? error.message : String(error);
-          setPreviewGraph(errorGraph(message));
-        })
-        .finally(() => {
-          if (runId === previewRunIdRef.current) {
-            setIsPreviewParsing(false);
+        .on("finished", (result) => {
+          if (runId !== previewRunIdRef.current) {
+            return;
           }
+          setPreviewGraph(parseInfomapPreviewResult(result));
+          setIsPreviewParsing(false);
+        })
+        .on("error", (message) => {
+          if (runId !== previewRunIdRef.current) {
+            return;
+          }
+          setPreviewGraph(errorGraph(message));
+          setIsPreviewParsing(false);
         });
+      previewWorkerId = previewInfomap.run({
+        network: networkValue,
+        filename: networkName || "network",
+        args: previewArgs,
+      });
     }, 300);
 
     return () => {
       if (previewTimeoutRef.current !== null) {
         window.clearTimeout(previewTimeoutRef.current);
         previewTimeoutRef.current = null;
+      }
+      if (previewInfomap && previewWorkerId !== null) {
+        void previewInfomap.terminate(previewWorkerId, 0);
       }
       if (previewRunIdRef.current === runId) {
         previewRunIdRef.current += 1;
@@ -501,6 +950,7 @@ export default function InfomapOnline() {
       pendingOutputNetworkSignatureRef.current = textSignature(
         store.infomapNetwork.content,
       );
+      runStartedAtRef.current = performance.now();
       infomap.run({
         network: store.infomapNetwork.content,
         filename: store.infomapNetwork.filename,
@@ -512,6 +962,13 @@ export default function InfomapOnline() {
       setIsRunning(false);
       drainOutputBuffer();
       setInfomapOutput([`Error: ${message}`]);
+      setLastRun({
+        args,
+        completedAt: Date.now(),
+        elapsedMs: performance.now() - runStartedAtRef.current,
+        networkSignature: pendingOutputNetworkSignatureRef.current,
+        status: "error",
+      });
       console.error(e);
       return;
     }
@@ -524,6 +981,7 @@ export default function InfomapOnline() {
   const [clusterEvaluation, setClusterEvaluation] =
     useState<EvaluationMetadata>({
       codeLength: null,
+      codelengthSavings: null,
       numLevels: null,
     });
   const clusterModules = useMemo(
@@ -555,16 +1013,17 @@ export default function InfomapOnline() {
     : clusterWins
       ? clusterModules
       : emptyPreviewModules;
-  const previewModuleSource = outputWins
-    ? "latest Infomap result"
-    : clusterWins
-      ? "loaded clusters"
-      : "latest Infomap result";
   const previewCodeLength =
     outputWins && output.codeLength !== null
       ? output.codeLength
       : clusterWins && clusterEvaluation.codeLength !== null
         ? clusterEvaluation.codeLength
+        : null;
+  const previewCodelengthSavings =
+    outputWins && output.codelengthSavings !== null
+      ? output.codelengthSavings
+      : clusterWins && clusterEvaluation.codelengthSavings !== null
+        ? clusterEvaluation.codelengthSavings
         : null;
   const previewNumLevels =
     outputWins && output.numLevels !== null
@@ -578,13 +1037,33 @@ export default function InfomapOnline() {
   const previewFtree = outputWins
     ? output.ftree_states || output.ftree
     : undefined;
+  const previewModuleColors = useMemo(() => {
+    if (previewGraph.status !== "ok" || previewModules.size === 0) {
+      return new Map<ModuleId, string>();
+    }
+    return buildHierarchicalModuleColors({
+      activeLevel: 1,
+      levelModules: previewLevelModules,
+      modules: previewModules,
+      nodes: previewGraph.nodes,
+    }).colorByModule;
+  }, [previewGraph, previewLevelModules, previewModules]);
   const cluLevelParam = params.getParam("--clu-level");
+  const numTrialsParam = params.getParam("--num-trials");
+  const previewTrialSetting =
+    numTrialsParam.active && numTrialsParam.value
+      ? String(numTrialsParam.value)
+      : "1";
   const previewSelectedLevel = cluLevelParam.active
     ? Number(cluLevelParam.value)
     : null;
 
   useEffect(() => {
-    setClusterEvaluation({ codeLength: null, numLevels: null });
+    setClusterEvaluation({
+      codeLength: null,
+      codelengthSavings: null,
+      numLevels: null,
+    });
     if (!clusterData.value || !network.value) return;
 
     let cancelled = false;
@@ -598,7 +1077,11 @@ export default function InfomapOnline() {
         })
         .on("error", () => {
           if (!cancelled) {
-            setClusterEvaluation({ codeLength: null, numLevels: null });
+            setClusterEvaluation({
+              codeLength: null,
+              codelengthSavings: null,
+              numLevels: null,
+            });
           }
         });
 
@@ -611,7 +1094,11 @@ export default function InfomapOnline() {
           files: { [clusterData.name || "clusters.clu"]: clusterData.value },
         });
       } catch {
-        setClusterEvaluation({ codeLength: null, numLevels: null });
+        setClusterEvaluation({
+          codeLength: null,
+          codelengthSavings: null,
+          numLevels: null,
+        });
       }
     }, 300);
 
@@ -640,7 +1127,19 @@ export default function InfomapOnline() {
   };
 
   const inputValue = inputOptions[activeInput].value;
+  const hasActiveInputValue = Boolean(inputValue);
   const inputLineCount = inputValue ? inputValue.split("\n").length : 0;
+  const hasNetworkValue = Boolean(network.value);
+  const networkCardName = hasNetworkValue
+    ? network.name || "Current network"
+    : "—";
+  const networkCardStats = !hasNetworkValue
+    ? "No input"
+    : previewGraph.status === "ok"
+      ? `${previewGraph.nodes.length.toLocaleString()} nodes · ${previewGraph.links.length.toLocaleString()} links`
+      : network.name
+        ? "File selected · preview unavailable"
+        : "No file · preview unavailable";
   const inputPreviewLineLimit = 500;
   const isLargeInput =
     inputLineCount > inputPreviewLineLimit || inputValue.length > 200_000;
@@ -652,8 +1151,11 @@ export default function InfomapOnline() {
         inputLineCount - inputPreviewLineLimit
       } more lines hidden — input is read-only above the size threshold`
     : inputValue;
-  const hasActiveInputValue = Boolean(inputOptions[activeInput].value);
   const consoleContent = infomapOutput.join("\n");
+  const changedSinceRun =
+    !!lastRun &&
+    (lastRun.networkSignature !== currentNetworkSignature ||
+      lastRun.args !== params.args);
   const showJsonOutput = argsRequestOutputFormat(params.args, "json");
   const outputFiles = [...physicalFiles, ...stateFiles].filter(
     (file) => showJsonOutput || !file.key.startsWith("json"),
@@ -691,115 +1193,134 @@ export default function InfomapOnline() {
     </Button>
   );
   const renderInputPanel = () => (
-    <Box
-      display="flex"
-      flex="1"
-      flexDirection="column"
-      minH={0}
-      overflowX="hidden"
-      overflowY="auto"
-      pr={1}
-    >
+    <>
       <PanelHeader
         title="Input data"
         description="Paste, load, or choose an example."
       />
 
-      <HStack flexShrink={0} mb={1} gap={1} align="center" maxW="100%">
-        <ButtonGroup
-          attached
-          variant="outline"
-          size="sm"
-          overflowX="auto"
-          maxW="100%"
-          role="tablist"
-        >
-          {inputTabs.map(({ key, label }) => {
-            const hasInput = Boolean(inputOptions[key].value);
-            const isActive = activeInput === key;
-
-            return (
-              <Button
-                key={key}
-                aria-selected={isActive}
-                bg={isActive ? "gray.100" : undefined}
-                borderColor={isActive ? "gray.300" : undefined}
-                color={isActive ? "gray.900" : undefined}
-                role="tab"
-                type="button"
-                onClick={() => store.setActiveInput(key)}
-                _hover={isActive ? { bg: "gray.100" } : undefined}
-              >
-                {hasInput && <LuCheck />}
-                {label}
-              </Button>
-            );
-          })}
-        </ButtonGroup>
-      </HStack>
-
-      <InputTextarea
-        aria-label={`${activeInput} network input`}
-        name={`${activeInput}-network-input`}
-        onDrop={onLoad(activeInput)}
-        accept={inputAccept[activeInput]}
-        onChange={(event) => onInputChange(activeInput)(event.target)}
-        value={displayInputValue}
-        readOnly={isLargeInput}
+      <InputFileInfoCard
         disabled={isInputLoading}
-        placeholder={inputPlaceholders[activeInput]}
-        spellCheck={false}
-        wrap="off"
-        overflow="auto"
-        resize="none"
-        flexShrink={0}
-        h={{ base: "11rem", md: "22rem" }}
-        variant="outline"
-        bg="gray.50"
-        fontSize="sm"
+        hasValue={hasNetworkValue}
+        name={networkCardName}
+        onClear={() => onInputChange("network")({ name: "", value: "" })}
+        stats={networkCardStats}
       />
-      <HStack flexShrink={0} mt={1} gap={2}>
-        <LoadButton
+
+      <Box
+        display="flex"
+        flex="1"
+        flexDirection="column"
+        minH={0}
+        overflow="hidden"
+      >
+        <HStack flexShrink={0} mb={1} gap={1} align="center" w="100%">
+          <ButtonGroup
+            attached
+            variant="outline"
+            size="sm"
+            role="tablist"
+            w="100%"
+          >
+            {inputTabs.map(({ key, label }) => {
+              const hasInput = Boolean(inputOptions[key].value);
+              const isActive = activeInput === key;
+
+              return (
+                <Button
+                  key={key}
+                  aria-selected={isActive}
+                  bg={isActive ? "gray.100" : undefined}
+                  borderColor={isActive ? "gray.300" : undefined}
+                  color={isActive ? "gray.900" : undefined}
+                  role="tab"
+                  type="button"
+                  flex="1"
+                  minW={0}
+                  onClick={() => store.setActiveInput(key)}
+                  _hover={isActive ? { bg: "gray.100" } : undefined}
+                >
+                  {hasInput && <LuCheck />}
+                  {label}
+                </Button>
+              );
+            })}
+          </ButtonGroup>
+        </HStack>
+
+        <InputTextarea
+          aria-label={`${activeInput} network input`}
+          name={`${activeInput}-network-input`}
           onDrop={onLoad(activeInput)}
           accept={inputAccept[activeInput]}
+          onChange={(event) => onInputChange(activeInput)(event.target)}
+          value={displayInputValue}
+          readOnly={isLargeInput}
           disabled={isInputLoading}
-          size="sm"
+          placeholder={inputPlaceholders[activeInput]}
+          spellCheck={false}
+          wrap="off"
+          overflow="auto"
+          resize="none"
+          flexShrink={0}
+          h={{ base: "11rem", lg: "22rem" }}
           variant="outline"
-        >
-          Load file
-        </LoadButton>
-        <Button
-          disabled={!hasActiveInputValue || isInputLoading}
-          onClick={() => onInputChange(activeInput)({ name: "", value: "" })}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          <LuX />
-          Clear input
-        </Button>
-      </HStack>
-      <ExampleNetworksList
-        disabled={isRunning}
-        onLoadingChange={setIsInputLoading}
-        onSelectNetwork={() => setMobilePanel(null)}
-      />
-    </Box>
+          bg="gray.50"
+          fontSize="sm"
+        />
+        <HStack flexShrink={0} mt={1} gap={2}>
+          <LoadButton
+            onDrop={onLoad(activeInput)}
+            accept={inputAccept[activeInput]}
+            disabled={isInputLoading}
+            size="sm"
+            variant="outline"
+          >
+            Load file
+          </LoadButton>
+          <Button
+            disabled={!hasActiveInputValue || isInputLoading}
+            onClick={() => onInputChange(activeInput)({ name: "", value: "" })}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <LuX />
+            Clear input
+          </Button>
+        </HStack>
+        <Box flex="1" minH={0} overflowX="hidden" overflowY="auto" pr={1}>
+          <ExampleNetworksList
+            disabled={isRunning}
+            onLoadingChange={setIsInputLoading}
+            onSelectNetwork={() => setMobilePanel(null)}
+          />
+        </Box>
+      </Box>
+    </>
   );
   const renderParametersPanel = () => (
     <>
       <PanelHeader
         title="Parameters"
         description="Edit arguments passed to Infomap."
-        action={<Box display={{ base: "none", lg: "block" }}>{runButton}</Box>}
       />
 
-      <Box flexShrink={0} mb={2}>
+      <HStack flexShrink={0} justify="space-between" gap={3} mb={3}>
+        {runButton}
+        <RunStatus
+          changedSinceRun={changedSinceRun}
+          isRunning={isRunning}
+          lastRun={lastRun}
+        />
+      </HStack>
+
+      <Box flexShrink={0} mb={5}>
         <InputParameters loading={isRunning} onClick={run} />
       </Box>
 
       <Box flex="1" minH={0} overflowY="auto" overflowX="hidden" pr={1}>
-        <Parameters />
+        <Parameters changedFromArgs={lastRun?.args} />
       </Box>
     </>
   );
@@ -859,6 +1380,20 @@ export default function InfomapOnline() {
         <PanelHeader
           title="Results"
           description="Inspect the network, run log, and output files."
+        />
+
+        <InfomapStatsStrip
+          codeLength={previewCodeLength}
+          codelengthSavings={previewCodelengthSavings}
+          consoleContent={consoleContent}
+          moduleColors={previewModuleColors}
+          moduleFlows={previewModuleFlows}
+          modules={previewModules}
+          nodeCount={
+            previewGraph.status === "ok" ? previewGraph.nodes.length : 0
+          }
+          numLevels={previewNumLevels}
+          trialSetting={previewTrialSetting}
         />
 
         <Stack
@@ -1025,7 +1560,6 @@ export default function InfomapOnline() {
 
         <Box display={tab === "network" ? "flex" : "none"} flex="1" minH={0}>
           <NetworkPreview
-            codeLength={previewCodeLength}
             directed={Boolean(params.getParam("--directed").active)}
             ftree={previewFtree}
             levelModules={previewLevelModules}
@@ -1036,7 +1570,6 @@ export default function InfomapOnline() {
                   ? "loading"
                   : null
             }
-            moduleSource={previewModuleSource}
             previewGraph={previewGraph}
             networkName={network.name}
             modules={previewModules}
@@ -1049,11 +1582,13 @@ export default function InfomapOnline() {
         <Box display={tab === "console" ? "flex" : "none"} flex="1" minH={0}>
           <OutputViewer
             ariaLabel="Infomap console output"
+            autoScroll
             content={consoleContent}
             fontSize="0.6875rem"
-            highlightComments={false}
+            isActive={tab === "console"}
             onCopy={() => {}}
             placeholder="Run Infomap to see the log…"
+            variant="terminal"
           />
         </Box>
         <Box display={tab === "output" ? "flex" : "none"} flex="1" minH={0}>

@@ -1,4 +1,4 @@
-export type ModuleId = number | string;
+export type ModuleId = string;
 export type ModuleMap = Map<number, ModuleId>;
 
 export type ModuleColorModel = {
@@ -40,9 +40,15 @@ const fallbackPalette = [
 ];
 
 export function fallbackModuleColor(moduleId: ModuleId) {
-  const index =
-    typeof moduleId === "number" ? Math.abs(moduleId) : stableHash(moduleId);
+  const index = stableHash(moduleId);
   return fallbackPalette[index % fallbackPalette.length];
+}
+
+export function moduleColorFromModel(
+  colors: Map<ModuleId, string>,
+  moduleId: ModuleId,
+) {
+  return colors.get(moduleId) ?? fallbackModuleColor(moduleId);
 }
 
 export function buildHierarchicalModuleColors({
@@ -159,14 +165,16 @@ export function modulePathFromNodePath(
   activeLevel: number,
 ): ModuleId[] {
   if (!nodePath || nodePath.length < 2) return [];
-  return nodePath.slice(0, Math.min(activeLevel, nodePath.length - 1));
+  return nodePath
+    .slice(0, Math.min(activeLevel, nodePath.length - 1))
+    .map(String);
 }
 
 export function modulePathFromModuleId(
   moduleId: ModuleId | undefined,
 ): ModuleId[] {
   if (moduleId === undefined) return [];
-  if (typeof moduleId === "string" && moduleId.includes(":")) {
+  if (moduleId.includes(":")) {
     return moduleId.split(":").filter(Boolean);
   }
   return [moduleId];

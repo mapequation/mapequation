@@ -319,7 +319,7 @@ const useInfomapStore = create<InfomapState>((set, get) => {
   };
 
   return withDerived({
-    network: { name: "weighted_modular", value: modular_w },
+    network: { name: "modular_w", value: modular_w },
     clusterData: { name: "", value: "" },
     metaData: { name: "", value: "" },
     activeInput: "network",

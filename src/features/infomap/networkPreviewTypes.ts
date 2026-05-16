@@ -23,7 +23,7 @@ export interface Graph {
 }
 
 export interface ModuleFlow {
-  module: number;
+  module: ModuleId;
   flow: number;
 }
 

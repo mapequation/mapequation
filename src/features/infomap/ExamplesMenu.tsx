@@ -1,5 +1,6 @@
 import { Button, Flex, Spinner, Text } from "@chakra-ui/react";
 import { useState } from "react";
+import { LuCheck } from "react-icons/lu";
 import * as networks from "../../data/networks";
 import useStore from "../../state";
 
@@ -289,6 +290,15 @@ export default function ExampleNetworksList({
           <Flex as="ul" gap={1} listStyleType="none" m={0} p={0} wrap="wrap">
             {category.networks.map((network) => {
               const isLoading = loading === network.name;
+              const cachedValue = network.url
+                ? urlCache.get(network.url)
+                : undefined;
+              const exampleValue = network.value ?? cachedValue;
+              const isSelected =
+                store.network.name === network.name &&
+                exampleValue !== undefined &&
+                store.network.value === exampleValue;
+
               return (
                 <Flex
                   as="li"
@@ -309,7 +319,11 @@ export default function ExampleNetworksList({
                     _hover={{ bg: "white", borderColor: "gray.300" }}
                     w="100%"
                   >
-                    {isLoading && <Spinner size="xs" />}
+                    {isLoading ? (
+                      <Spinner size="xs" />
+                    ) : (
+                      isSelected && <LuCheck />
+                    )}
                     {network.label}
                   </Button>
                 </Flex>

@@ -1,15 +1,17 @@
 import { saveAs } from "file-saver";
 import JSZip from "jszip";
 import { OUTPUT_FORMATS } from "../data/output-formats";
+import type { ModuleId } from "../features/infomap/moduleColors";
 import type { OutputContent, OutputFile, OutputKey } from "./types";
 
 export type OutputState = Record<OutputKey, string> & {
   activeKey: OutputKey;
   codeLength: number | null;
+  codelengthSavings: number | null;
   downloaded: boolean;
   hiddenOutputKeys: Set<OutputKey>;
   levelModules: Map<number, Map<number, string>>;
-  modules: Map<number, number>;
+  modules: Map<number, ModuleId>;
   moduleFlows: ModuleFlowMap;
   nodePaths: Map<number, number[]>;
   numLevels: number | null;
@@ -35,6 +37,7 @@ export const emptyOutput = (): OutputState => ({
   flow_as_physical: "",
   activeKey: "tree",
   codeLength: null,
+  codelengthSavings: null,
   downloaded: false,
   hiddenOutputKeys: new Set(),
   levelModules: new Map(),
@@ -62,10 +65,10 @@ export function stateFiles(output: OutputState, name: string) {
 }
 
 export function parseCluModules(clu: string) {
-  if (!clu) return new Map<number, number>();
+  if (!clu) return new Map<number, ModuleId>();
 
   const flows = parseCluModuleFlows(clu);
-  const modules = new Map<number, number>();
+  const modules = new Map<number, ModuleId>();
   for (const [id, entries] of flows) {
     let best = entries[0];
     for (const entry of entries) {
@@ -76,7 +79,7 @@ export function parseCluModules(clu: string) {
   return modules;
 }
 
-type ModuleFlow = { module: number; flow: number };
+type ModuleFlow = { module: ModuleId; flow: number };
 export type ModuleFlowMap = Map<number, ModuleFlow[]>;
 
 function parseCluModuleFlows(clu: string): ModuleFlowMap {
@@ -92,9 +95,9 @@ function parseCluModuleFlows(clu: string): ModuleFlowMap {
     const tokens = trimmed.split(/\s+/);
     if (tokens.length < 2) continue;
     const id = Number(tokens[0]);
-    const moduleId = Number(tokens[1]);
+    const moduleId = tokens[1];
     const flow = tokens.length >= 3 ? Number(tokens[2]) : 1;
-    if (!Number.isFinite(id) || !Number.isFinite(moduleId)) continue;
+    if (!Number.isFinite(id) || !moduleId) continue;
     let arr = result.get(id);
     if (!arr) {
       arr = [];
@@ -116,6 +119,7 @@ type ParsedJsonOutput = {
   codeLength?: unknown;
   nodes?: unknown;
   numLevels?: unknown;
+  relativeCodelengthSavings?: unknown;
 };
 
 function parseJsonOutput(output: OutputState): ParsedJsonOutput | null {
@@ -144,16 +148,17 @@ function parseJsonModuleFlows(output: OutputState): ModuleFlowMap {
     const id = Number(node.id);
     const path = Array.isArray(node.path) ? node.path.map(Number) : [];
     const module = path[0];
+    const moduleId = String(module);
     const flow = Number(node.flow);
     if (!Number.isFinite(id) || !Number.isFinite(module)) continue;
 
     const entries = result.get(id) ?? [];
-    const existing = entries.find((entry) => entry.module === module);
+    const existing = entries.find((entry) => entry.module === moduleId);
     const finiteFlow = Number.isFinite(flow) ? flow : 1;
     if (existing) {
       existing.flow += finiteFlow;
     } else {
-      entries.push({ module, flow: finiteFlow });
+      entries.push({ module: moduleId, flow: finiteFlow });
       result.set(id, entries);
     }
   }
@@ -162,7 +167,7 @@ function parseJsonModuleFlows(output: OutputState): ModuleFlowMap {
 }
 
 function parseJsonModules(output: OutputState) {
-  const modules = new Map<number, number>();
+  const modules = new Map<number, ModuleId>();
 
   for (const [id, entries] of parseJsonModuleFlows(output)) {
     let best = entries[0];
@@ -237,9 +242,13 @@ function parseJsonLevelModules(output: OutputState) {
 function parseJsonMetadata(output: OutputState) {
   const content = parseJsonOutput(output);
   const codeLength = Number(content?.codelength ?? content?.codeLength);
+  const codelengthSavings = Number(content?.relativeCodelengthSavings);
   const numLevels = Number(content?.numLevels);
   return {
     codeLength: Number.isFinite(codeLength) ? codeLength : null,
+    codelengthSavings: Number.isFinite(codelengthSavings)
+      ? codelengthSavings
+      : null,
     numLevels: Number.isFinite(numLevels) ? numLevels : null,
   };
 }
@@ -266,6 +275,7 @@ export function applyOutputContent(
   next.levelModules = parseJsonLevelModules(next);
   const jsonMetadata = parseJsonMetadata(next);
   next.codeLength = jsonMetadata.codeLength;
+  next.codelengthSavings = jsonMetadata.codelengthSavings;
   next.numLevels = jsonMetadata.numLevels;
   next.activeKey =
     ([
